@@ -130,6 +130,38 @@ unnecessary overhead, which can be removed at build-time using:
     configure --enable-auto-reload
 
 
+**Linux Capabilities**
+
+Finit supports Linux capabilities, allowing services to run with minimal
+required privileges instead of running as root. This improves security by
+following the principle of least privilege.
+
+```conf
+service [2345] name:nginx \
+        www-data:www-data \
+        caps:^cap_net_bind_service \
+        /usr/sbin/nginx -g 'daemon off;'
+```
+
+In this example, nginx runs as the unprivileged `www-data` user but retains
+the ability to bind to privileged ports (80, 443) through the
+`cap_net_bind_service` capability.
+
+The `caps:` directive uses the IAB (Inheritable, Ambient, Bounding) format:
+- `^` = Ambient (recommended) - capabilities survive exec()
+- `%` = Inheritable only - requires file capabilities
+- `!` = Bounding - block from acquiring capability
+
+Multiple capabilities can be specified as comma-separated:
+
+```conf
+caps:^cap_net_raw,^cap_net_admin,!cap_sys_admin
+```
+
+See the [Linux Capabilities](config/capabilities.md) section for detailed
+information, examples, and security best practices.
+
+
 **Cgroups**
 
 Finit supports cgroups v2 and comes with the following default groups in

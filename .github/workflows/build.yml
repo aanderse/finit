@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install pkg-config tree jq libuev-dev libite-dev
+          sudo apt-get -y install pkg-config tree jq libuev-dev libite-dev libcap-dev
       - uses: actions/checkout@v4
       - name: Static Finit
         run: |

@@ -42,6 +42,7 @@ started at any time by running `initctl start <service>`.
 
 Other run/task/service options are:
 
+  * `caps:...` -- see the [Linux Capabilities](capabilities.md) section
   * `cgroups:...` -- see the [Cgroups](cgroups.md) section
   * `env:[-]/path/to/env` -- see the [Service Environment](service-env.md) section
   * `log:...` -- see [Redirecting Output](logging.md#redirecting-output)
