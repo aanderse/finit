@@ -1048,6 +1048,16 @@ static int json_status_one(FILE *fp, svc_t *svc, char *indent, int prev)
 			"%s  \"starts\": %d,\n", indent, svc->once);
 	fprintf(fp,
 		"%s  \"restarts\": %d,\n", indent, svc->restart_tot); /* XXX: add restart_cnt and restart_max */
+
+	/* Add memory information if cgroup support is available */
+	if (cgrp && svc->pid > 1) {
+		char *group = pid_cgroup(svc->pid);
+		if (group) {
+			fprintf(fp, "%s  \"memory\": %lu,\n", indent, cgroup_memory(group));
+			free(group);
+		}
+	}
+
 	fprintf(fp,
 		"%s  \"pidfile\": \"%s\",\n"
 		"%s  \"pid\": %d,\n"
