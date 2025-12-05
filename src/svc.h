@@ -191,6 +191,7 @@ typedef struct svc {
 	/* Identity */
 	char	       username[MAX_USER_LEN];
 	char	       group[MAX_USER_LEN];
+	char	       capabilities[MAX_CMD_LEN];
 
 	/* Command, arguments and service description */
 	char	       cmd[MAX_CMD_LEN];

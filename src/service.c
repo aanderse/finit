@@ -39,6 +39,9 @@
 # include <lite/lite.h>
 #endif
 #include <wordexp.h>
+#ifdef HAVE_LIBCAP
+# include <sys/capability.h>
+#endif
 
 #include "cgroup.h"
 #include "client.h"
@@ -521,6 +524,36 @@ static void compose_cmdline(svc_t *svc, char *buf, size_t len)
 	}
 }
 
+static void set_uid(uid_t uid, svc_t *svc)
+{
+#ifdef HAVE_LIBCAP
+	if (cap_setuid(uid)) {
+		err(1, "%s: failed cap_setuid(%d)", svc_ident(svc, NULL, 0), uid);
+		return;
+	}
+
+	/* After dropping privileges, set the specific capabilities we need */
+	if (svc->capabilities[0]) {
+		cap_iab_t cap_iab = cap_iab_from_text(svc->capabilities);
+		if (!cap_iab) {
+			err(1, "%s: failed parsing capabilities '%s'",
+			    svc_ident(svc, NULL, 0), svc->capabilities);
+			return;
+		}
+
+		if (cap_iab_set_proc(cap_iab) != 0) {
+			cap_free(cap_iab);
+			err(1, "%s: failed setting capabilities",
+			    svc_ident(svc, NULL, 0));
+		}
+		cap_free(cap_iab);
+	}
+#else
+	if (setuid(uid))
+		err(1, "%s: failed setuid(%d)", svc_ident(svc, NULL, 0), uid);
+#endif
+}
+
 static pid_t service_fork(svc_t *svc)
 {
 	pid_t pid;
@@ -552,8 +585,7 @@ static pid_t service_fork(svc_t *svc)
 		}
 
 		if (uid >= 0) {
-			if (setuid(uid))
-				err(1, "%s: failed setuid(%d)", svc_ident(svc, NULL, 0), uid);
+			set_uid(uid, svc);
 
 			/* Set default path for regular users */
 			if (uid > 0)
@@ -1666,6 +1698,7 @@ int service_register(int type, char *cfg, struct rlimit rlimit[], char *file)
 	char *ready_script = NULL, *conflict = NULL;
 	char *reload_script = NULL, *stop_script = NULL;
 	char *cleanup_script = NULL;
+	char *caps = NULL;
 	char ident[MAX_IDENT_LEN];
 	char *ifstmt = NULL;
 	char *notify = NULL;
@@ -1781,6 +1814,8 @@ int service_register(int type, char *cfg, struct rlimit rlimit[], char *file)
 			stop_script = arg;
 		else if (MATCH_CMD(cmd, "env:", arg))
 			env = arg;
+		else if (MATCH_CMD(cmd, "caps:", arg))
+			caps = arg;
 		/* catch both cgroup: and cgroup. handled in parse_cgroup() */
 		else if (MATCH_CMD(cmd, "cgroup", arg))
 			cgroup = arg;
@@ -2004,6 +2039,10 @@ int service_register(int type, char *cfg, struct rlimit rlimit[], char *file)
 		parse_env(svc, env);
 	else
 		memset(svc->env, 0, sizeof(svc->env));
+	if (caps)
+		strlcpy(svc->capabilities, caps, sizeof(svc->capabilities));
+	else
+		memset(svc->capabilities, 0, sizeof(svc->capabilities));
 	if (file)
 		strlcpy(svc->file, file, sizeof(svc->file));
 	else

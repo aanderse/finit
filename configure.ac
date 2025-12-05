@@ -72,6 +72,10 @@ AC_ARG_ENABLE(cgroup,
         AS_HELP_STRING([--disable-cgroup], [Disable cgroup v2 support, default: autodetect from /sys/fs/cgroup]),,[
         enable_cgroup=yes])
 
+AC_ARG_ENABLE(libcap,
+        AS_HELP_STRING([--disable-libcap], [Disable Linux capabilities support]),,[
+				enable_libcap=yes])
+
 AC_ARG_ENABLE(redirect,
         AS_HELP_STRING([--disable-redirect], [Disable redirection of service output to /dev/null]),,[
 	enable_redirect=yes])
@@ -203,6 +207,16 @@ AS_IF([test "x$enable_kernel_logging" = "xyes"], [
 
 AS_IF([test "x$enable_cgroup" = "xyes"], [
         AC_DEFINE(CGROUP2_ENABLED, 1, [Autodetect cgroup v2 support from /sys/fs/cgroup])])
+
+AS_IF([test "x$enable_libcap" = "xyes"], [
+	AC_CHECK_LIB([cap], [cap_from_text], [
+		AC_DEFINE(HAVE_LIBCAP, 1, [Have libcap for Linux capabilities support])
+		LIBS="$LIBS -lcap"
+	], [
+		AC_MSG_WARN([libcap not found, capabilities support disabled])
+		enable_libcap=no
+	])
+])
 
 AS_IF([test "x$enable_fastboot" = "xyes"], [
 	AC_DEFINE(FAST_BOOT, 1, [Skip fsck check on filesystems listed in /etc/fstab])])
@@ -419,6 +433,7 @@ Optional features:
   Built-in logrotate....: $enable_logrotate
   Replacement libsystemd: $with_libsystemd
   Use cgroup v2.........: $enable_cgroup
+  Use libcap............: $enable_libcap
   Parse kernel cmdline..: $enable_kernel_cmdline
   Keep kernel logging...: $enable_kernel_logging
   Skip fsck check.......: $enable_fastboot
