@@ -3,6 +3,23 @@ Change Log
 
 All relevant changes are documented in this file.
 
+[4.15][UNRELEASED]
+---------------------
+
+### Changes
+- Allow longer service identifiers (`:id`), up to 64 characters
+- Allow skipping bootstrap wait (180 sec) with Ctrl-C
+- Change default reboot to SOC reset from WDT reset, issue #460
+- Unlock `initctl` commands start/stop/restart/reload service during
+  bootstrap, shutdown, and reboot.  Also, allow `initctl reload` in
+  bootstrap.  This makes it possible to start manual:yes type services
+  at botostrap, for example, which has been a common feature request.
+
+### Fixes
+- Fix #453: RTC plugin fixes by Ming Liu, Atlas Copco
+- Fix #455: ANSI escape sequences logged by tools using glib logging,
+  caused by use of PTY instead of pipe for stdout/stderr redirection
+- Ensure mount/unmount skips `noauto` entries
 
 
 [4.14][] - 2025-08-29
@@ -1852,7 +1869,9 @@ Major bug fix release.
 
 * Initial release
 
-[UNRELEASED]: https://github.com/troglobit/finit/compare/4.12...HEAD
+[UNRELEASED]: https://github.com/troglobit/finit/compare/4.14...HEAD
+[4.15]: https://github.com/troglobit/finit/compare/4.14...4.15
+[4.14]: https://github.com/troglobit/finit/compare/4.13...4.14
 [4.13]: https://github.com/troglobit/finit/compare/4.12...4.13
 [4.12]: https://github.com/troglobit/finit/compare/4.11...4.12
 [4.11]: https://github.com/troglobit/finit/compare/4.10...4.11
