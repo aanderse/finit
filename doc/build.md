@@ -186,7 +186,6 @@ it only for debugging start up issues when Finit crashes.
 > None of these options should be enabled on production systems since
 > they can potentially give a user root access.
 
-
-[1]:       ftp://troglobit.com/finit/finit-4.3.tar.gz
+[1]:       https://github.com/finit-project/finit/releases/download/4.3/finit-4.3.tar.gz
 [libuEv]:  https://github.com/troglobit/libuev
 [libite]:  https://github.com/troglobit/libite

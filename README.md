@@ -11,7 +11,7 @@ on small and embedded Linux systems, although fully usable on server and
 > — [Claudio Matsuoka][]
 
 For detailed information, explore our extensive documentation  
-:books: **<https://troglobit.github.io/finit/>**
+:books: **<http://finit-project.github.io/finit/>**
 
 <div align="center">
   <img src="doc/img/alpine-screenshot2.png" alt="Alpine screenshot"><br/>
@@ -20,10 +20,10 @@ For detailed information, explore our extensive documentation
 For working examples, see the :rocket: [contrib/](contrib/) section or these
 tutorials:
 
-  * :hammer_and_wrench: [Buildroot embedded Linux](https://troglobit.com/post/2022-12-26-buildroot-demo-of-fastinit-finit/),
-  * :package: [Debian GNU/Linux](contrib/debian/),
-  * :mountain: [Alpine Linux](contrib/alpine/), and
-  * :milky_way: [Void Linux](contrib/void/)
+* :hammer_and_wrench: [Buildroot embedded Linux][br2demo],
+* :package: [Debian GNU/Linux](contrib/debian/),
+* :mountain: [Alpine Linux](contrib/alpine/), and
+* :milky_way: [Void Linux](contrib/void/)
 
 > [!NOTE]
 > Support for various Linux distributions does not mean Finit installs
@@ -37,6 +37,7 @@ tutorials:
 [Buildroot]:        https://buildroot.org
 [Infix]:            https://kernelkit.github.io
 [myLinux]:          https://github.com/troglobit/myLinux/
+[br2demo]:          https://troglobit.com/post/2022-12-26-buildroot-demo-of-fastinit-finit/
 [EeePC fastinit]:   https://web.archive.org/web/20071208212450/http://wiki.eeeuser.com/boot_process:the_boot_process
 [Claudio Matsuoka]: https://github.com/cmatsuoka
 [License]:          https://en.wikipedia.org/wiki/MIT_License
