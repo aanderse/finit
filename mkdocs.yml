@@ -1,8 +1,8 @@
 site_name: Documentation
 site_description: Fast Init for Linux Systems
 site_url: http://finit-project.github.io/finit/
-repo_url: https://github.com/finit-project//finit
-repo_name: troglobit/finit
+repo_url: https://github.com/finit-project/finit
+repo_name: Finit Project
 copyright: Copyright &copy; 2008-2025 Joachim Wiberg
 docs_dir: doc/
 edit_uri: edit/master/doc/
@@ -110,6 +110,5 @@ plugins:
   - search
   - callouts
 
-
 extra:
-  homepage: https://troglobit.com/projects/finit/
+  homepage: https://finit-project.github.io/
