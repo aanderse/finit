@@ -62,8 +62,8 @@ const char *basenm (const char *path);
 
 char *str          (char *fmt, ...)                        __attribute__ ((format (printf, 1, 2)));
 
-int   getuser      (char *username, char **home);
-int   getgroup     (char *group);
+int   getuser      (const char *username, char **home);
+int   getgroup     (const char *group);
 
 int   getcuser     (char *buf, size_t len);
 int   getcgroup    (char *buf, size_t len);

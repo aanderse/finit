@@ -180,7 +180,7 @@ char *str(char *fmt, ...)
 	return buf;
 }
 
-int getuser(char *username, char **home)
+int getuser(const char *username, char **home)
 {
 #ifdef ENABLE_STATIC
 	if (home)
@@ -198,7 +198,7 @@ int getuser(char *username, char **home)
 #endif
 }
 
-int getgroup(char *group)
+int getgroup(const char *group)
 {
 #ifdef ENABLE_STATIC
 	return fgetint("/etc/group", "x:\n", group);
