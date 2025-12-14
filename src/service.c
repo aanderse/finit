@@ -276,7 +276,6 @@ static int lredirect(svc_t *svc)
 	pid_t svc_pid = getpid();
 	int pipefd[2];
 	pid_t pid;
-	int fd;
 
 	/*
 	 * Use a pipe to connect to logger.  This ensures isatty()
@@ -289,7 +288,6 @@ static int lredirect(svc_t *svc)
 
 		return -1;
 	}
-	fd = pipefd[1];  /* Write end for service */
 
 	/*
 	 * First time, check if we have sysklogd logger tool.
