@@ -134,4 +134,4 @@ and as soon as it comes back up again `ntpd` is restarted automatically.
 [finit.conf(5)]: https://man.troglobit.com/man5/finit.conf.5.html
 [infix]:         https://kernelkit.github.io
 [myLinux]:       https://github.com/troglobit/myLinux/
-[contrib]:       https://github.com/troglobit/finit/tree/master/contrib
+[contrib]:       https://github.com/finit-project/finit/tree/master/contrib

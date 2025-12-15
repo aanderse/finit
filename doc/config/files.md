@@ -32,7 +32,7 @@ the following layout is recommended:
                 `- ...
 
 Configuration files in `/etc` are provided by the user, or projects like
-[finit-skel](https://github.com/troglobit/finit-skel) and extended by
+[finit-skel](https://github.com/finit-project/finit-skel) and extended by
 the user.
 
 The files in `/lib/finit/system/*.conf` are system critical services and

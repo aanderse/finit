@@ -1,5 +1,5 @@
-AC_INIT([Finit], [4.15-rc1], [https://github.com/troglobit/finit/issues],
-	[finit], [https://troglobit.com/projects/finit/])
+AC_INIT([Finit], [4.15-rc1], [https://github.com/finit-project/finit/issues],
+	[finit], [https://http://finit-project.github.io/])
 AC_CONFIG_AUX_DIR(aux)
 AM_INIT_AUTOMAKE([1.11 foreign subdir-objects])
 AM_SILENT_RULES([yes])

@@ -1,4 +1,4 @@
-[![License Badge][]][License] [![GitHub Status][]][GitHub] [![Coverity Status][]][Coverity Scan]
+[![License Badge][]][License] [![Release Badge][]][Release] [![GitHub Status][]][GitHub] [![Coverity Status][]][Coverity Scan]
 <img align="right" src="doc/img/finit3.png" alt="Finit: Fast Init">
 
 Finit is an alternative to [SysV init](https://en.wikipedia.org/wiki/Init)
@@ -31,7 +31,7 @@ tutorials:
 > standard installations, tested on amd64 (x86_64) systems.  Custom
 > setups, e.g., for embedded systems, can be found in the following
 > [Buildroot][] based examples: [myLinux][], [Infix][], or the plain
-> [br2-finit-demo](https://github.com/troglobit/br2-finit-demo).
+> [br2-finit-demo](https://github.com/finit-project/br2-finit-demo).
 
 [finix]:            https://github.com/aanderse/finix
 [Buildroot]:        https://buildroot.org
@@ -42,7 +42,9 @@ tutorials:
 [Claudio Matsuoka]: https://github.com/cmatsuoka
 [License]:          https://en.wikipedia.org/wiki/MIT_License
 [License Badge]:    https://img.shields.io/badge/License-MIT-teal.svg
-[GitHub]:           https://github.com/troglobit/finit/actions/workflows/build.yml/
-[GitHub Status]:    https://github.com/troglobit/finit/actions/workflows/build.yml/badge.svg
+[Release]:          https://github.com/finit-project/finit/releases
+[Release Badge]:    https://img.shields.io/github/v/release/finit-project/finit
+[GitHub]:           https://github.com/finit-project/finit/actions/workflows/build.yml/
+[GitHub Status]:    https://github.com/finit-project/finit/actions/workflows/build.yml/badge.svg
 [Coverity Scan]:    https://scan.coverity.com/projects/3545
 [Coverity Status]:  https://scan.coverity.com/projects/3545/badge.svg

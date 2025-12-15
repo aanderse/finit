@@ -1869,9 +1869,9 @@ Major bug fix release.
 
 * Initial release
 
-[UNRELEASED]: https://github.com/troglobit/finit/compare/4.14...HEAD
-[4.15]: https://github.com/troglobit/finit/compare/4.14...4.15
-[4.14]: https://github.com/troglobit/finit/compare/4.13...4.14
+[UNRELEASED]: https://github.com/finit-project/finit/compare/4.14...HEAD
+[4.15]: https://github.com/finit-project/finit/compare/4.14...4.15
+[4.14]: https://github.com/finit-project/finit/compare/4.13...4.14
 [4.13]: https://github.com/troglobit/finit/compare/4.12...4.13
 [4.12]: https://github.com/troglobit/finit/compare/4.11...4.12
 [4.11]: https://github.com/troglobit/finit/compare/4.10...4.11

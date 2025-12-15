@@ -63,7 +63,7 @@ and proposed extensions.
 [3]:                https://manpages.debian.org/unstable/ifupdown2/interfaces.5.en.html
 [4]:                https://en.wikipedia.org/wiki/Init
 [5]:                https://en.wikipedia.org/wiki/Runlevel
-[6]:                https://github.com/troglobit/finit
+[6]:                https://github.com/finit-project/finit
 [systemd]:          https://www.freedesktop.org/wiki/Software/systemd/
 [sd_notify()]:      https://www.freedesktop.org/software/systemd/man/sd_notify.html
 [s6 style]:         https://skarnet.org/software/s6/notifywhenup.html
