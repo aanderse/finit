@@ -170,9 +170,9 @@ static void file_save(void *arg)
 static void file_restore(void *arg)
 {
 	struct tm tm = { 0 };
+	char msg[120];
 	int rc = 0;
 	FILE *fp;
-	char msg[120];
 
 	if (!rtc_file) {
 		snprintf(msg, sizeof(msg), "Resetting system clock to kernel default, %s.", rtc_timestamp);
@@ -188,12 +188,11 @@ static void file_restore(void *arg)
 
 		if (fgets(buf, sizeof(buf), fp)) {
 			chomp(buf);
-			strptime(buf, RTC_FMT, &tm);
 			if (!strptime(buf, RTC_FMT, &tm))
 				rc = 1;
 		}
 		fclose(fp);
-	}
+	} else
 		rc = 1;
 
 	if (rc) {
