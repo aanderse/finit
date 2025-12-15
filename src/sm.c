@@ -29,6 +29,7 @@
 #include <termios.h>
 
 #include "finit.h"
+#include "cgroup.h"
 #include "cond.h"
 #include "conf.h"
 #include "log.h"
@@ -190,6 +191,10 @@ static void sm_check_bootstrap(void *work)
 	/* Clean up bootstrap-only tasks/services that never started */
 	dbg("Clean up all bootstrap-only tasks/services ...");
 	svc_prune_bootstrap();
+
+	/* Clean up empty cgroups from bootstrap tasks (e.g., udevadm, coldplug) */
+	dbg("Pruning empty cgroups from bootstrap ...");
+	cgroup_prune();
 
 	/* All services/tasks/etc. in configure runlevel have started */
 	dbg("Running svc up hooks ...");
@@ -401,6 +406,10 @@ restart:
 		/* Prev runlevel services stopped, call hooks before starting new runlevel ... */
 		dbg("All services have been stopped, calling runlevel change hooks ...");
 		plugin_run_hooks(HOOK_RUNLEVEL_CHANGE);  /* Reconfigure HW/VLANs/etc here */
+
+		/* Clean up empty cgroups from previous runlevel */
+		dbg("Pruning empty cgroups from previous runlevel ...");
+		cgroup_prune();
 
 		dbg("Starting services new to this runlevel ...");
 		sm.in_reload = 0;

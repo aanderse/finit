@@ -56,4 +56,6 @@ int   cgroup_watch   (const char *group, const char *name);
 int   cgroup_move_pid(const char *group, const char *name, int pid, int delegate);
 int   cgroup_move_svc(svc_t *svc);
 
+void  cgroup_prune   (void);
+
 #endif /* FINIT_CGROUP_H_ */

@@ -21,6 +21,7 @@
  * THE SOFTWARE.
  */
 
+#include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -674,6 +675,79 @@ int cgroup_add(char *name, char *cfg, int is_protected)
 }
 
 /*
+ * Walk a cgroup directory and remove all empty subdirectories recursively.
+ */
+static void cgroup_prune_recursive(const char *path)
+{
+	struct dirent *d;
+	DIR *dir;
+
+	dir = opendir(path);
+	if (!dir)
+		return;
+
+	while ((d = readdir(dir)) != NULL) {
+		char subpath[PATH_MAX];
+
+		if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
+			continue;
+		if (d->d_type != DT_DIR)
+			continue;
+
+		snprintf(subpath, sizeof(subpath), "%s/%s", path, d->d_name);
+		cgroup_prune_recursive(subpath);
+	}
+	closedir(dir);
+
+	/*
+	 * Try to remove this directory. If it still has children or processes,
+	 * rmdir() will fail with ENOTEMPTY/EBUSY - that's fine.
+	 */
+	if (rmdir(path) && errno != ENOTEMPTY && errno != EBUSY)
+		warn("Failed to prune %s", path);
+}
+
+/*
+ * Housekeeping: prune all empty cgroup subdirectories.
+ * Called after runlevel transitions to clean up finished run/task cgroups.
+ */
+void cgroup_prune(void)
+{
+	struct dirent *entry;
+	struct cg *cg;
+	char path[256];
+	DIR *dir;
+
+	if (!avail)
+		return;
+
+	dbg("Pruning empty cgroup directories...");
+
+	/* Walk through each top-level cgroup (init, system, user) */
+	TAILQ_FOREACH(cg, &cgroups, link) {
+		snprintf(path, sizeof(path), FINIT_CGPATH "/%s", cg->name);
+
+		dir = opendir(path);
+		if (!dir)
+			continue;
+
+		/* Check each subdirectory */
+		while ((entry = readdir(dir)) != NULL) {
+			char subpath[512];
+
+			if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, ".."))
+				continue;
+			if (entry->d_type != DT_DIR)
+				continue;
+
+			snprintf(subpath, sizeof(subpath), "%s/%s", path, entry->d_name);
+			cgroup_prune_recursive(subpath);
+		}
+		closedir(dir);
+	}
+}
+
+/*
  * Remove inactive top-level cgroup
  */
 int cgroup_del(char *dir)
@@ -696,7 +770,8 @@ int cgroup_del(char *dir)
 	}
 
 	if (rmdir(dir) && errno != ENOENT) {
-		dbg("Failed removing %s: %s", dir, strerror(errno));
+		if (errno != EBUSY)
+			warn("Failed rmdir(%s): %s", dir, strerror(errno));
 		return -1;
 	}
 
