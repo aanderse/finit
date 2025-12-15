@@ -128,11 +128,18 @@ void stty(int fd, speed_t speed)
 	term.c_cc[VERASE] = CERASE;
 	tcsetattr(fd, TCSAFLUSH, &term);
 
-	/* Show cursor again, if it was hidden previously */
-	dprint(fd, "\033[?25h", 6);
-
-	/* Enable line wrap, if disabled previously */
-	dprint(fd, "\033[?7h", 5);
+	/* Reset terminal to sane state - disable modes that break scrollback */
+	dprint(fd, "\033[m", 3);          /* Reset SGR attributes */
+	dprint(fd, "\033[?1000l", 8);     /* Disable X11 mouse tracking */
+	dprint(fd, "\033[?1002l", 8);     /* Disable button event tracking */
+	dprint(fd, "\033[?1003l", 8);     /* Disable all mouse tracking */
+	dprint(fd, "\033[?1006l", 8);     /* Disable SGR mouse mode */
+	dprint(fd, "\033[?1015l", 8);     /* Disable urxvt mouse mode */
+	dprint(fd, "\033[?1049l", 8);     /* Exit alternate screen buffer */
+	dprint(fd, "\033[?1l", 6);        /* Exit application cursor keys mode */
+	dprint(fd, "\033[?2004l", 8);     /* Disable bracketed paste mode */
+	dprint(fd, "\033[?25h", 6);       /* Show cursor */
+	dprint(fd, "\033[?7h", 5);        /* Enable line wrap */
 }
 
 /**
