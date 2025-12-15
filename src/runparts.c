@@ -95,7 +95,7 @@ static void run_env(const char *env[])
 int run_parts(char *dir, char *cmd, const char *env[], int progress, int sysv)
 {
 	size_t cmdlen = cmd ? strlen(cmd) : strlen("start");
-	struct dirent **d;
+	struct dirent **d = NULL;
 	int i, num;
 	int rc = 0;
 

@@ -50,7 +50,7 @@ int r_flag = 0;
 
 static int is_dir_empty(const char *path)
 {
-	struct dirent **namelist;
+	struct dirent **namelist = NULL;
 	int num;
 
 	num = scandir(path, &namelist, NULL, NULL);
