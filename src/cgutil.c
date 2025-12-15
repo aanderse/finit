@@ -40,8 +40,9 @@
 #include "initctl.h"
 #include "log.h"
 
-#define CDIM plain ? "" : "\e[2m"
-#define CRST plain ? "" : "\e[0m"
+#define CDIM   plain ? "" : "\e[2m"
+#define CRST   plain ? "" : "\e[0m"
+#define CLREOL plain ? "" : "\e[K"		/* Clear to end of line */
 
 #define NONE " "
 #define PIPE plain ? "| " : "│ "
@@ -421,25 +422,24 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 	struct stat st;
 	struct cg *cg;
 	char buf[512];
-	int rc = 0;
 	FILE *fp;
 	int i, n;
 	int num;
 
-	if (pos >= ttrows)
-		return 0;
+	if (pos >= ttrows - 1)
+		return pos;
 
 	if (-1 == lstat(path, &st))
-		return 1;
+		return pos;
 
 	if ((st.st_mode & S_IFMT) != S_IFDIR) {
 		errno = ENOTDIR;
-		return -1;
+		return pos;
 	}
 
 	fp = fopenf("r", "%s/cgroup.procs", path);
 	if (!fp)
-		return -1;
+		return pos;
 	num = 0;
 	while (fgets(buf, sizeof(buf), fp))
 		num++;
@@ -468,7 +468,10 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 			break;
 		}
 
-		puts(row);
+		printf("%s%s\n", row, CLREOL);
+		pos++;
+		if (pos >= ttrows - 1)
+			goto out;
 	}
 
 	if (num > 0) {
@@ -520,19 +523,18 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 					strlcat(row, CRST, sizeof(row));
 				}
 
-				puts(row);
+				printf("%s%s\n", row, CLREOL);
+				pos++;
 
 				free(cmdline);
-			}
 
-			if (mode == 1) {
-				pos += i;
-				if (pos >= ttrows)
+				if (pos >= ttrows - 1)
 					break;
 			}
 		}
 	}
 
+out:
 	fclose(fp);
 
 	n = scandir(path, &namelist, cgroup_filter, alphasort);
@@ -540,6 +542,9 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 		for (i = 0; i < n; i++) {
 			char *nm = namelist[i]->d_name;
 			char prefix[80];
+
+			if (pos >= ttrows - 1)
+				break;
 
 			snprintf(buf, sizeof(buf), "%s/%s", path, nm);
 			switch (mode) {
@@ -577,9 +582,10 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 			strlcat(row, nm,   rplen);
 			strlcat(row, "/ ", rplen);
 
-			puts(row);
+			printf("%s%s\n", row, CLREOL);
+			pos++;
 
-			rc += cgroup_tree(buf, prefix, mode, pos + i);
+			pos = cgroup_tree(buf, prefix, mode, pos);
 
 			free(namelist[i]);
 		}
@@ -587,7 +593,7 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 		free(namelist);
 	}
 
-	return rc;
+	return pos;
 }
 
 int show_cgps(char *arg)
@@ -606,13 +612,22 @@ int show_cgps(char *arg)
 
 static void cgtop(uev_t *w, void *arg, int events)
 {
+	int lines;
+
 	(void)w;
 	(void)events;
 
-	fputs("\e[2J\e[1;1H", stdout);
-	if (heading)
+	/* Move cursor to home instead of clearing screen to avoid flicker */
+	fputs("\e[H", stdout);
+	lines = 0;
+	if (heading) {
 		print_header(" VmSIZE     RSS   VmLIB  %%MEM  %%CPU  GROUP");
-	cgroup_tree(arg, NULL, 1, 0);
+		lines = 1;
+	}
+	cgroup_tree(arg, NULL, 1, lines);
+	/* Clear from cursor to end of screen to remove leftover lines */
+	fputs("\e[J", stdout);
+	fflush(stdout);
 }
 
 static void cleanup(void)
