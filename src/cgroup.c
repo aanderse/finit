@@ -61,6 +61,33 @@ static uev_t cgw;
 static int avail;
 
 
+/*
+ * Set up inotify watch on cgroup for automatic cleanup when empty.
+ * Should be called after cgroup_prepare() but before process starts.
+ */
+int cgroup_watch(const char *group, const char *name)
+{
+	char path[256];
+	int rc;
+
+	if (!avail)
+		return 0;
+
+	/* Special case: root cgroup has no separate events file to watch */
+	if (!strcmp(group, "root"))
+		return 0;
+
+	snprintf(path, sizeof(path), "/sys/fs/cgroup/%s/%s/cgroup.events", group, name);
+	rc = iwatch_add(&iw_cgroup, path, 0);
+	if (rc < 0) {
+		warn("Failed setting up inotify watch on %s", path);
+		return -1;
+	}
+
+	dbg("Watching %s for automatic cleanup", path);
+	return 0;
+}
+
 static void cgset(const char *path, char *ctrl, char *prop)
 {
 	char *val;
@@ -148,40 +175,99 @@ static void group_init(char *path, int leaf, const char *cfg)
 	}
 }
 
-static int cgroup_leaf_init(char *group, char *name, int pid, const char *cfg)
+static int cgroup_create(const char *group, const char *name, const char *cfg,
+			 int delegate, const char *username, const char *grpname,
+			 char *pathbuf, size_t pathlen)
 {
 	char path[256];
 
-	dbg("group %s, name %s, pid %d, cfg %s", group, name, pid, cfg ?: "NIL");
-	if (pid < 0 || pid == 1) {
-		errno = EINVAL;
-		return 1;
+	snprintf(path, sizeof(path), "/sys/fs/cgroup/%s/%s", group, name);
+
+	if (delegate) {
+		char initpath[PATH_MAX];
+
+		/* For delegation, create as domain group (not leaf) */
+		group_init(path, 0, cfg);
+
+		/* Enable controllers for delegation */
+		if (fnwrite(controllers, "%s/cgroup.subtree_control", path))
+			warn("Failed enabling controllers in %s for delegation", path);
+
+		/* Change ownership of delegation files */
+		if (username && username[0] && grpname && grpname[0]) {
+			uid_t uid = getuser(username, NULL);
+			gid_t gid = getgroup(grpname);
+
+			if (uid != (uid_t)-1 && gid != (gid_t)-1) {
+				char filepath[PATH_MAX];
+				char *files[] = {
+					"cgroup.procs",
+					"cgroup.subtree_control",
+					"cgroup.threads",
+					"cgroup.type",
+					NULL
+				};
+
+				for (int i = 0; files[i]; i++) {
+					snprintf(filepath, sizeof(filepath), "%s/%s", path, files[i]);
+					if (chown(filepath, uid, gid))
+						warn("Failed chown %s to %d:%d", filepath, uid, gid);
+				}
+			}
+		}
+
+		snprintf(initpath, sizeof(initpath), "%s/supervisor", path);
+		group_init(initpath, 1, NULL);
+		strlcpy(path, initpath, sizeof(path));
+	} else {
+		/* Normal leaf cgroup */
+		group_init(path, 1, cfg);
 	}
 
-	/* create and initialize new group */
-	snprintf(path, sizeof(path), "/sys/fs/cgroup/%s/%s", group, name);
-	group_init(path, 1, cfg);
+	if (!fisdir(path)) {
+		warn("Cgroup directory %s doesn't exist after creation", path);
+		return -1;
+	}
 
-	/* move process to new group */
-	if (fnwrite(str("%d", pid), "%s/cgroup.procs", path))
-		err(1, "Failed moving pid %d to group %s", pid, path);
+	/* Return the path to caller if they provided a buffer */
+	if (pathbuf && pathlen > 0)
+		strlcpy(pathbuf, path, pathlen);
 
-	strlcat(path, "/cgroup.events", sizeof(path));
-
-	return iwatch_add(&iw_cgroup, path, 0);
+	return cgroup_watch(group, name);
 }
 
-int cgroup_user(char *name, int pid)
+static int cgroup_leaf_init(const char *group, const char *name, int pid, const char *cfg,
+			    int delegate, const char *username, const char *grpname)
+{
+	dbg("group %s, name %s, pid %d, cfg %s, delegate %d", group, name, pid, cfg ?: "NIL", delegate);
+	if (cgroup_create(group, name, cfg, delegate, username, grpname, NULL, 0))
+		return -1;
+
+	dbg("Assigning PID %d to cgroup %s/%s", pid, group, name);
+
+	/* Special case: "root" cgroup means the actual cgroup root */
+	if (!strcmp(group, "root"))
+		return fnwrite(str("%d", pid), FINIT_CGPATH "/cgroup.procs");
+
+	if (cgroup_move_pid(group, name, pid, delegate))
+		err(1, "Failed moving pid %d to group %s/%s", pid, group, name);
+
+	/* Set up inotify watch for cgroup cleanup */
+	return cgroup_watch(group, name);
+}
+
+int cgroup_user(const char *name, int pid)
 {
 	if (!avail)
 		return 0;
 
-	return cgroup_leaf_init("user", name, pid, NULL);
+	return cgroup_leaf_init("user", name, pid, NULL, 0, NULL, NULL);
 }
 
-int cgroup_service(char *name, int pid, struct cgroup *cg)
+int cgroup_service(const char *name, int pid, struct cgroup *cg, char *username, char *grpname)
 {
 	char *group = "system";
+	int delegate = 0;
 
 	if (!avail)
 		return 0;
@@ -198,9 +284,64 @@ int cgroup_service(char *name, int pid, struct cgroup *cg)
 		snprintf(path, sizeof(path), "/sys/fs/cgroup/%s", cg->name);
 		if (fisdir(path))
 			group = cg->name;
+
+		delegate = cg->delegate;
 	}
 
-	return cgroup_leaf_init(group, name, pid, cg ? cg->cfg : NULL);
+	return cgroup_leaf_init(group, name, pid, cg ? cg->cfg : NULL, delegate, username, grpname);
+}
+
+/* Create cgroup for the requested type of service, return fd to cgroup for clone3() */
+int cgroup_prepare(svc_t *svc, const char *name)
+{
+	const char *group;
+	const char *cfg = NULL;
+	const char *username = NULL;
+	const char *grpname = NULL;
+	int delegate = 0;
+	char path[256];
+	int fd = -1;
+
+	if (!avail)
+		return -1;
+
+	if (!name) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (!svc) {
+		/* Helper process (e.g., networking) */
+		group = "system";
+	} else if (svc_is_tty(svc)) {
+		/* TTY/getty services go in user cgroup */
+		group = "user";
+	} else if (svc->cgroup.name[0] && !strcmp(svc->cgroup.name, "root")) {
+		/* Special case: SCHED_RR processes go in root cgroup */
+		fd = open("/sys/fs/cgroup", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		if (fd < 0)
+			warn("Failed opening root cgroup");
+
+		return fd;
+	} else {
+		/* Regular service */
+		group = svc->cgroup.name[0] ? svc->cgroup.name : "system";
+		cfg = svc->cgroup.cfg;
+		delegate = svc->cgroup.delegate;
+		username = svc->username;
+		grpname = svc->group;
+	}
+
+	/* Create the cgroup and get the path back */
+	if (cgroup_create(group, name, cfg, delegate, username, grpname, path, sizeof(path)))
+		return -1;
+
+	/* Open and return fd for clone3() */
+	fd = open(path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	if (fd < 0)
+		warn("Failed opening cgroup %s", path);
+
+	return fd;
 }
 
 static void append_ctrl(char *ctrl)
@@ -440,6 +581,31 @@ int cgroup_del(char *dir)
 	}
 
 	return 0;
+}
+
+/*
+ * Delete cgroup for a service (convenience wrapper)
+ */
+int cgroup_del_svc(svc_t *svc, const char *name)
+{
+	const char *group;
+	char path[256];
+
+	if (!avail)
+		return 0;
+
+	/* Determine group from service */
+	if (svc_is_tty(svc)) {
+		group = "user";
+	} else if (svc->cgroup.name[0] && !strcmp(svc->cgroup.name, "root")) {
+		/* Root cgroup - nothing to delete */
+		return 0;
+	} else {
+		group = svc->cgroup.name[0] ? svc->cgroup.name : "system";
+	}
+
+	snprintf(path, sizeof(path), "/sys/fs/cgroup/%s/%s", group, name);
+	return cgroup_del(path);
 }
 
 /* the top-level init cgroup is a leaf, that's ensured in cgroup_init() */

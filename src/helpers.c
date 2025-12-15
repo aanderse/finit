@@ -463,7 +463,7 @@ void networking(int updown)
 				_exit(EX_OSERR);
 			_exit(WEXITSTATUS(rc));
 		}
-		cgroup_service("network", pid, NULL);
+		cgroup_service("network", pid, NULL, NULL, NULL);
 		print(pid > 0 ? 0 : 1, "%s network interfaces ...",
 		      updown ? "Bringing up" : "Taking down");
 

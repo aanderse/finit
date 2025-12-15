@@ -106,7 +106,9 @@ char *runparts = NULL;
 int   runparts_progress;
 int   runparts_sysv;
 
-char cgroup_current[16]; /* cgroup.NAME sets current cgroup for a set of services */
+char cgroup_current[16];           /* cgroup.NAME sets current cgroup for a set of services */
+char cgroup_settings_current[128]; /* cgroup.system,cpu.weight:500 - cgroup settings */
+int  cgroup_delegate_current;      /* cgroup.system,delegate - delegation flag */
 
 struct conf_change {
 	TAILQ_ENTRY(conf_change) link;
@@ -1105,7 +1107,38 @@ static int parse_dynamic(char *line, struct rlimit rlimit[], char *file)
 
 	/* Set current cgroup for the following services/run/tasks */
 	if (MATCH_CMD(line, "cgroup.", x)) {
-		strlcpy(cgroup_current, x, sizeof(cgroup_current));
+		char *group, *token, *saveptr;
+		char settings[128] = {0};
+
+		/* Reset cgroup state */
+		cgroup_settings_current[0] = '\0';
+		cgroup_delegate_current = 0;
+
+		/* First token is the group name (system/user/init) */
+		group = strtok_r(x, ",", &saveptr);
+		if (group)
+			strlcpy(cgroup_current, group, sizeof(cgroup_current));
+		else
+			strlcpy(cgroup_current, x, sizeof(cgroup_current));
+
+		/* Parse any remaining comma-separated options */
+		while ((token = strtok_r(NULL, ",", &saveptr)) != NULL) {
+			if (strncmp(token, "name:", 5) == 0) {
+				/* Cgroup leaf name override - only valid in per-service directives */
+				warnx("cgroup %s: name: option not valid in global directive!", group);
+			} else if (strcmp(token, "delegate") == 0) {
+				cgroup_delegate_current = 1;
+			} else {
+				/* Other settings (cpu.weight:500, memory.max:1G, etc.) */
+				if (settings[0])
+					strlcat(settings, ",", sizeof(settings));
+				strlcat(settings, token, sizeof(settings));
+			}
+		}
+
+		if (settings[0])
+			strlcpy(cgroup_settings_current, settings, sizeof(cgroup_settings_current));
+
 		return 0;
 	}
 

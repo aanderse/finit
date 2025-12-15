@@ -26,21 +26,31 @@
 
 #include <uev/uev.h>
 
+/* Forward declaration */
+typedef struct svc svc_t;
+
 struct cgroup {
 	char name[16];
 	char cfg[128];
+	char leafname[128];
+	char delegate;
 };
 
-void cgroup_mark_all(void);
-void cgroup_cleanup (void);
+void  cgroup_mark_all(void);
+void  cgroup_cleanup (void);
 
-int  cgroup_add     (char *name, char *cfg, int is_protected);
-int  cgroup_del     (char *dir);
-void cgroup_config  (void);
+int   cgroup_add     (char *name, char *cfg, int is_protected);
+int   cgroup_del     (char *dir);
+int   cgroup_del_svc (svc_t *svc, const char *name);
+void  cgroup_config  (void);
 
-void cgroup_init    (uev_ctx_t *ctx);
+void  cgroup_init    (uev_ctx_t *ctx);
 
-int  cgroup_user    (char *name, int pid);
-int  cgroup_service (char *name, int pid, struct cgroup *cg);
+int   cgroup_user    (const char *name, int pid);
+int   cgroup_service (const char *name, int pid, struct cgroup *cg, char *username, char *group);
+
+char *cgroup_svc_name(svc_t *svc, char *buf, size_t len);
+int   cgroup_prepare (svc_t *svc, const char *name);
+int   cgroup_watch   (const char *group, const char *name);
 
 #endif /* FINIT_CGROUP_H_ */

@@ -44,6 +44,7 @@
 #endif
 
 #include "cgroup.h"
+#include "clone3.h"
 #include "client.h"
 #include "conf.h"
 #include "cond.h"
@@ -477,30 +478,6 @@ static int is_norespawn(void)
 		fexist("/tmp/norespawn");
 }
 
-/* used for process group name, derived from originating filename,
- * so to group multiple services, place them in the same .conf
- */
-static char *group_name(svc_t *svc, char *buf, size_t len)
-{
-	char *ptr;
-
-	if (!svc->file[0])
-		return svc_ident(svc, buf, len);
-
-	ptr = strrchr(svc->file, '/');
-	if (ptr)
-		ptr++;
-	else
-		ptr = svc->file;
-
-	strlcpy(buf, ptr, len);
-	ptr = strstr(buf, ".conf");
-	if (ptr)
-		*ptr = 0;
-
-	return buf;
-}
-
 static void compose_cmdline(svc_t *svc, char *buf, size_t len)
 {
 	size_t i;
@@ -547,9 +524,23 @@ static void set_uid(uid_t uid, svc_t *svc)
 
 static pid_t service_fork(svc_t *svc)
 {
+	const char *cgnm;
+	char grnam[128];
+	int cgfd = -1;
 	pid_t pid;
 
-	pid = fork();
+	cgnm = cgroup_svc_name(svc, grnam, sizeof(grnam));
+	cgfd = cgroup_prepare(svc, cgnm);
+
+	pid = call_clone3(0, cgfd);
+	if (cgfd >= 0)
+		close(cgfd);
+
+	if (pid < 0) {
+		cgroup_del_svc(svc, cgnm);
+		return pid;
+	}
+
 	if (pid == 0) {
 		char *home = NULL;
 #ifdef ENABLE_STATIC
@@ -594,13 +585,11 @@ static pid_t service_fork(svc_t *svc)
 		source_env(svc);
 	}
 
-	if (pid > 1) {
-		char grnam[80];
-
+	if (pid > 0 && !has_clone3()) {
 		if (svc_is_tty(svc))
 			cgroup_user("getty", pid);
 		else
-			cgroup_service(group_name(svc, grnam, sizeof(grnam)), pid, &svc->cgroup);
+			cgroup_service(cgnm, pid, &svc->cgroup, svc->username, svc->group);
 	}
 
 	return pid;
@@ -1396,36 +1385,68 @@ static void parse_env(svc_t *svc, char *env)
 }
 
 /*
- * the @cgroup argument can be, e.g., .system:mem.max:1234 or just the
+ * the @cgroup argument can be, e.g., .system,mem.max:1234 or just the
  * default group with some cfg, e.g., :mem.max:1234 as a side effect,
  * cgroupinit also work, selecting group init.
  */
 static void parse_cgroup(svc_t *svc, char *cgroup)
 {
-	char *ptr = NULL;
-
 	if (!cgroup)
 		return;
 
+	/* Per-service cgroup directive completely overrides global settings */
+	svc->cgroup.delegate = 0;
+	svc->cgroup.leafname[0] = 0;
+	svc->cgroup.cfg[0] = 0;
+
+	/* Detect syntax: old colon-based vs new comma-separated */
 	if (cgroup[0] == '.') {
-		ptr = strchr(cgroup, ':');
-		if (ptr)
-			*ptr++ = 0;
-	group:
-		strlcpy(svc->cgroup.name, &cgroup[1], sizeof(svc->cgroup.name));
-		if (!ptr)
-			return;
+		char *token, *ptr, *group;
+		char settings[128] = {0};
+		char cgcopy[256];
+
+		/* New comma-separated syntax: cgroup.system,name:udevd,delegate,cpu.max:10000 */
+		strlcpy(cgcopy, cgroup, sizeof(cgcopy));
+		group = strtok_r(cgcopy, ",", &ptr);
+		if (group && group[0] == '.')
+			strlcpy(svc->cgroup.name, &group[1], sizeof(svc->cgroup.name));
+
+		/* Parse remaining comma-separated options */
+		while ((token = strtok_r(NULL, ",", &ptr)) != NULL) {
+			if (strncmp(token, "name:", 5) == 0) {
+				/* Cgroup leaf name override */
+				strlcpy(svc->cgroup.leafname, token + 5, sizeof(svc->cgroup.leafname));
+			} else if (strcmp(token, "delegate") == 0) {
+				svc->cgroup.delegate = 1;
+			} else {
+				/* Other settings (cpu.weight:500, memory.max:1G, etc.) */
+				if (settings[0])
+					strlcat(settings, ",", sizeof(settings));
+				strlcat(settings, token, sizeof(settings));
+			}
+		}
+
+		if (settings[0])
+			strlcpy(svc->cgroup.cfg, settings, sizeof(svc->cgroup.cfg));
+
+		dbg("%s: cgroup name:%s leafname:%s cfg:%s delegate:%s", svc_ident(svc, NULL, 0),
+		    svc->cgroup.name, svc->cgroup.leafname, svc->cgroup.cfg,
+		    svc->cgroup.delegate ? "yes" : "no");
 	} else if (cgroup[0] == ':') {
+		char *ptr;
+
+		/* Old syntax: cgroup:settings (keeps current group) */
 		ptr = &cgroup[1];
-	} else
-		goto group;
-
-	if (strlen(ptr) >= sizeof(svc->cgroup)) {
-		errx(1, "%s: cgroup settings too long (>%zu chars)", svc_ident(svc, NULL, 0), sizeof(svc->cgroup));
-		return;
+		if (strlen(ptr) >= sizeof(svc->cgroup.cfg)) {
+			errx(1, "%s: cgroup settings too long (>%zu chars)", svc_ident(svc, NULL, 0),
+			     sizeof(svc->cgroup.cfg));
+			return;
+		}
+		strlcpy(svc->cgroup.cfg, ptr, sizeof(svc->cgroup.cfg));
+	} else {
+		/* Just a group name without dot or colon */
+		strlcpy(svc->cgroup.name, cgroup, sizeof(svc->cgroup.name));
 	}
-
-	strlcpy(svc->cgroup.cfg, ptr, sizeof(svc->cgroup.cfg));
 }
 
 static void parse_sighalt(svc_t *svc, char *arg)
@@ -2085,6 +2106,14 @@ int service_register(int type, char *cfg, struct rlimit rlimit[], char *file)
 
 	/* Seed with currently active group, may be empty */
 	strlcpy(svc->cgroup.name, cgroup_current, sizeof(svc->cgroup.name));
+
+	/* Apply cgroup settings if specified */
+	if (cgroup_settings_current[0])
+		strlcpy(svc->cgroup.cfg, cgroup_settings_current, sizeof(svc->cgroup.cfg));
+
+	/* Apply delegation flag */
+	svc->cgroup.delegate = cgroup_delegate_current;
+
 	if (cgroup)
 		parse_cgroup(svc, cgroup);
 
