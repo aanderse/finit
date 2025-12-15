@@ -53,4 +53,7 @@ char *cgroup_svc_name(svc_t *svc, char *buf, size_t len);
 int   cgroup_prepare (svc_t *svc, const char *name);
 int   cgroup_watch   (const char *group, const char *name);
 
+int   cgroup_move_pid(const char *group, const char *name, int pid, int delegate);
+int   cgroup_move_svc(svc_t *svc);
+
 #endif /* FINIT_CGROUP_H_ */

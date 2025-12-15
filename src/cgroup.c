@@ -88,6 +88,133 @@ int cgroup_watch(const char *group, const char *name)
 	return 0;
 }
 
+/*
+ * Derive cgroup name from service (mirrors group_name() in service.c)
+ * For use by plugins that need to determine the cgroup path.
+ *
+ * MUST return the same value that group_name() in service.c returns!
+ */
+char *cgroup_svc_name(svc_t *svc, char *buf, size_t len)
+{
+	char *ptr;
+
+	/* Use explicit cgroup leaf name if specified */
+	if (svc->cgroup.leafname[0]) {
+		strlcpy(buf, svc->cgroup.leafname, len);
+		return buf;
+	}
+
+	if (!svc->file[0])
+		return svc_ident(svc, buf, len);
+
+	ptr = strrchr(svc->file, '/');
+	if (ptr)
+		ptr++;
+	else
+		ptr = svc->file;
+
+	strlcpy(buf, ptr, len);
+
+	/* Strip .conf extension - this gives us the cgroup name */
+	ptr = strstr(buf, ".conf");
+	if (ptr)
+		*ptr = 0;
+
+	return buf;
+}
+
+/*
+ * Helper function to move a PID to a service's cgroup.
+ * @group:    Top-level cgroup (e.g., "system", "user", "maint")
+ * @name:     Service-specific cgroup name (e.g., "dockerd", "nginx")
+ * @pid:      Process ID to move
+ * @delegate: If 1, handle potential EBUSY by using supervisor/ subdirectory
+ *
+ * Useful for forking services where child PIDs need to be moved after they appear.
+ *
+ * For delegated cgroups, handles the cgroups v2 "no internal processes" rule:
+ * if the parent has child cgroups, tries to reuse process-named subdirectory or
+ * falls back to supervisor/ subdirectory.
+ *
+ * Returns: 0 on success, -1 on failure
+ */
+int cgroup_move_pid(const char *group, const char *name, int pid, int delegate)
+{
+	int rc = 0, reuse = 0;
+	char path[512];
+
+	if (!avail)
+		return 0;
+
+	/* Sanity checks */
+	if (!group || !name || pid <= 0) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	/* Disallow path traversal */
+	if (strstr(group, "..") || strstr(name, "..") ||
+	    strchr(group, '/') || strchr(name, '/')) {
+		errno = EINVAL;
+		warn("Invalid cgroup path components: group=%s name=%s", group, name);
+		return -1;
+	}
+
+	snprintf(path, sizeof(path), FINIT_CGPATH "/%s/%s", group, name);
+	if (!fisdir(path)) {
+		warn("Cgroup %s does not exist", path);
+		return -1;
+	}
+
+	if ((rc = fnwrite(str("%d", pid), "%s/cgroup.procs", path))) {
+		/*
+		 * EBUSY means the cgroup has children (cgroups v2 "no internal processes" rule).
+		 * For delegated cgroups, fall back to subdirectory.
+		 */
+		if (errno == EBUSY && delegate) {
+			char comm[64];
+
+			/* Check if subdirectory matching process name, e.g., conmon, exists */
+			readsnf(comm, sizeof(comm), "/proc/%d/comm", pid);
+			strlcat(path, "/", sizeof(path));
+			strlcat(path, comm, sizeof(path));
+			if (fisdir(path))
+				reuse = 1;
+			else
+				snprintf(path, sizeof(path), FINIT_CGPATH "/%s/%s/supervisor", group, name);
+
+			rc = fnwrite(str("%d", pid), "%s/cgroup.procs", path);
+		}
+
+		if (rc) {
+			warn("Failed moving pid %d to cgroup %s", pid, path);
+			return -1;
+		}
+	}
+
+	if (reuse) {
+		snprintf(path, sizeof(path), FINIT_CGPATH "/%s/%s/supervisor", group, name);
+		rmdir(path);
+	}
+
+	return 0;
+}
+
+int cgroup_move_svc(svc_t *svc)
+{
+	const char *group = "system";
+	char name[MAX_ARG_LEN];
+
+	if (!avail || !svc)
+		return 0;
+
+	if (svc->cgroup.name[0])
+		group = svc->cgroup.name;
+
+	return cgroup_move_pid(group, cgroup_svc_name(svc, name, sizeof(name)),
+			       svc->pid, svc->cgroup.delegate);
+}
+
 static void cgset(const char *path, char *ctrl, char *prop)
 {
 	char *val;
