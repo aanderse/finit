@@ -7,18 +7,32 @@ All relevant changes are documented in this file.
 ---------------------
 
 ### Changes
+- Change default reboot to SOC reset from WDT reset, issue #460
+- Bump required versions of libite (v2.6.2) and libuev (v2.4.1)
 - Allow longer service identifiers (`:id`), up to 64 characters
 - Allow skipping bootstrap wait (180 sec) with Ctrl-C
-- Change default reboot to SOC reset from WDT reset, issue #460
-- Unlock `initctl` commands start/stop/restart/reload service during
-  bootstrap, shutdown, and reboot.  Also, allow `initctl reload` in
-  bootstrap.  This makes it possible to start manual:yes type services
-  at botostrap, for example, which has been a common feature request.
+- Unlock `initctl` commands start/stop/restart/reload service during bootstrap,
+  shutdown, and reboot.  Also, allow `initctl reload` in bootstrap. This makes
+  it possible to start manual:yes type services at botostrap, for example, which
+  has been a common feature request
+- Add support for `clone3()` syscall with atomic cgroup assignment, from Linux
+  kernel 5.3+.  Eliminates race conditions where forked processes (e.g., logger
+  processes) ended up in wrong cgroups. Falls back to `fork()` on older kernels
+- Add support for cgroup delegation, useful for, e.g., container runtimes
+  creating sub-groups for the container instance's processes
+- Add cgroup leaf name override: `cgroup.system,name:udevd` allows using
+  descriptive names like `/system/udevd/` instead of filename derived names
+  like `/system/10-hotplug/`.  Syntax supports combining with other options:
+  `cgroup.system,name:foo,delegate,cpu.max:10000`
 
 ### Fixes
 - Fix #453: RTC plugin fixes by Ming Liu, Atlas Copco
 - Fix #455: ANSI escape sequences logged by tools using glib logging,
   caused by use of PTY instead of pipe for stdout/stderr redirection
+- getty: fix terminal scrollback issues after login on console TTY.  Mouse
+  scroll wheel and Shift+PgUp/PgDn sometimes would not work properly
+- Fix flickering and artifacts in `initctl top`
+- Fix file descriptor leak in `initctl top`
 - Ensure mount/unmount skips `noauto` entries
 
 
