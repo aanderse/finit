@@ -102,6 +102,7 @@ char *pid_cmdline(int pid)
 			buf[i] = ' ';
 	}
 
+	fclose(fp);
 	return buf;
 }
 
