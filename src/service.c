@@ -747,7 +747,7 @@ static int service_start(svc_t *svc)
 		}
 	} else { /* pid == 0 */
 		char str[strlen(NOTIFY_PATH) + 32];
-		char *args[MAX_NUM_SVC_ARGS + 1];
+		char *args[MAX_NUM_SVC_ARGS + 3];
 		int status;
 
 		if (!svc_is_tty(svc))
@@ -1146,12 +1146,12 @@ int service_stop(svc_t *svc)
 			svc_set_state(svc, SVC_HALTED_STATE);
 		}
 	} else {
-		char *args[MAX_NUM_SVC_ARGS + 1];
+		char *args[MAX_NUM_SVC_ARGS + 3];
 		size_t i = 0, j;
 
 		args[i++] = svc->cmd;
 		/* this handles, e.g., bridge-stop br0 stop */
-		for (j = 0; j < MAX_NUM_SVC_ARGS - 2; j++) {
+		for (j = 0; j < MAX_NUM_SVC_ARGS; j++) {
 			if (!strlen(svc->args[j]))
 				break;
 			args[i++] = svc->args[j];
