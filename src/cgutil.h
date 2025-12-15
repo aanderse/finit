@@ -58,6 +58,7 @@ char *pid_cmdline (int pid);
 char *pid_cgroup  (int pid);
 
 uint64_t cgroup_memory(char *group);
+int cgroup_throttle(char *group, uint64_t *throttled_usec, uint64_t *nr_throttled);
 
 struct cg *cg_stats(char *path);
 struct cg *cg_conf (char *path);

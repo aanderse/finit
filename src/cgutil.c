@@ -252,6 +252,41 @@ uint64_t cgroup_memory(char *group)
 	return cgroup_uint64(path, "memory.current");
 }
 
+int cgroup_throttle(char *group, uint64_t *throttled_usec, uint64_t *nr_throttled)
+{
+	char path[256];
+	char buf[256];
+	FILE *fp;
+	int found = 0;
+
+	paste(path, sizeof(path), FINIT_CGPATH, group);
+
+	fp = fopenf("r", "%s/cpu.stat", path);
+	if (!fp)
+		return -1;
+
+	*throttled_usec = 0;
+	*nr_throttled = 0;
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		chomp(buf);
+
+		if (!strncmp(buf, "throttled_usec", 14)) {
+			*throttled_usec = strtoull(&buf[15], NULL, 10);
+			found++;
+		} else if (!strncmp(buf, "nr_throttled", 12)) {
+			*nr_throttled = strtoull(&buf[13], NULL, 10);
+			found++;
+		}
+
+		if (found == 2)
+			break;
+	}
+
+	fclose(fp);
+	return 0;
+}
+
 static float cgroup_cpuload(struct cg *cg)
 {
 	char fn[256];

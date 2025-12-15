@@ -1015,6 +1015,7 @@ static int json_status_one(FILE *fp, svc_t *svc, char *indent, int prev)
 		indent, svc_typestr(svc),
 		indent, svc->forking ? "true" : "false",
 		indent, svc_status(svc));
+
 	if (svc->state != SVC_RUNNING_STATE) {
 		int rc, sig;
 
@@ -1030,30 +1031,48 @@ static int json_status_one(FILE *fp, svc_t *svc, char *indent, int prev)
 				"%s  \"exit\": { \"%s\": %d },\n",
 				indent, "signal", sig);
 	}
+
 	fprintf(fp,
 		"%s  \"origin\": \"%s\",\n"
 		"%s  \"command\": \"%s\",\n",
 		indent, svc->file[0] ? svc->file : "built-in",
 		indent, svc_command(svc, buf, sizeof(buf), 0));
+
 	svc_environ(svc, buf, sizeof(buf), 0);
 	if (buf[0])
 		fprintf(fp,
 			"%s  \"environment\": \"%s\",\n", indent, buf);
+
 	svc_cond(svc, buf, sizeof(buf), 0);
 	if (buf[0])
 		fprintf(fp,
 			"%s  \"condition\": %s,\n", indent, buf);
+
 	if (svc->manual)
 		fprintf(fp,
 			"%s  \"starts\": %d,\n", indent, svc->once);
+
 	fprintf(fp,
 		"%s  \"restarts\": %d,\n", indent, svc->restart_tot); /* XXX: add restart_cnt and restart_max */
 
-	/* Add memory information if cgroup support is available */
+	/* Add memory and CPU information if cgroup support is available */
 	if (cgrp && svc->pid > 1) {
 		char *group = pid_cgroup(svc->pid);
+
 		if (group) {
+			uint64_t throttled_usec = 0;
+			uint64_t nr_throttled = 0;
+
+			fprintf(fp, "%s  \"cgroup\": \"%s\",\n", indent, group);
 			fprintf(fp, "%s  \"memory\": %lu,\n", indent, cgroup_memory(group));
+
+			if (cgroup_throttle(group, &throttled_usec, &nr_throttled) == 0) {
+				fprintf(fp, "%s  \"cpu\": {\n", indent);
+				fprintf(fp, "%s    \"throttled_usec\": %lu,\n", indent, throttled_usec);
+				fprintf(fp, "%s    \"nr_throttled\": %lu\n", indent, nr_throttled);
+				fprintf(fp, "%s  },\n", indent);
+			}
+
 			free(group);
 		}
 	}
@@ -1144,8 +1163,11 @@ static int show_status(char *arg)
 			printf("     Starts : %d\n", svc->once);
 		printf("   Restarts : %d (%d/%d)\n", svc->restart_tot, svc->restart_cnt, svc->restart_max);
 		printf("  Runlevels : %s\n", runlevel_string(runlevel, svc->runlevels));
+
 		if (cgrp && svc->pid > 1) {
 			const struct cg *cg;
+			uint64_t throttled_usec = 0;
+			uint64_t nr_throttled = 0;
 			char path[256];
 			char *group;
 
@@ -1157,6 +1179,12 @@ static int show_status(char *arg)
 			cg = cg_conf(path);
 
 			printf("     Memory : %s\n", memsz(cgroup_memory(group), uptm, sizeof(uptm)));
+
+			if (cgroup_throttle(group, &throttled_usec, &nr_throttled) == 0) {
+				printf("CPU Throttle : %lu usec (%lu times)\n",
+				       throttled_usec, nr_throttled);
+			}
+
 			printf("     CGroup : %s cpu %s [%s, %s] mem [%s, %s]\n",
 			       group, cg->cg_cpu.set, cg->cg_cpu.weight, cg->cg_cpu.max,
 			       cg->cg_mem.min, cg->cg_mem.max);
