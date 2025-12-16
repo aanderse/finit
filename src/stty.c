@@ -135,7 +135,7 @@ void stty(int fd, speed_t speed)
 	dprint(fd, "\033[?1003l", 8);     /* Disable all mouse tracking */
 	dprint(fd, "\033[?1006l", 8);     /* Disable SGR mouse mode */
 	dprint(fd, "\033[?1015l", 8);     /* Disable urxvt mouse mode */
-	dprint(fd, "\033[?1049l", 8);     /* Exit alternate screen buffer */
+//	dprint(fd, "\033[?1049l", 8);     /* Exit alternate screen buffer */
 	dprint(fd, "\033[?1l", 6);        /* Exit application cursor keys mode */
 	dprint(fd, "\033[?2004l", 8);     /* Disable bracketed paste mode */
 	dprint(fd, "\033[?25h", 6);       /* Show cursor */
