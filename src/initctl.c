@@ -1062,6 +1062,8 @@ static int json_status_one(FILE *fp, svc_t *svc, char *indent, int prev)
 		if (group) {
 			uint64_t throttled_usec = 0;
 			uint64_t nr_throttled = 0;
+			char path[256];
+			struct cg *cg;
 
 			fprintf(fp, "%s  \"cgroup\": \"%s\",\n", indent, group);
 			fprintf(fp, "%s  \"memory\": %lu,\n", indent, cgroup_memory(group));
@@ -1070,6 +1072,86 @@ static int json_status_one(FILE *fp, svc_t *svc, char *indent, int prev)
 				fprintf(fp, "%s  \"cpu\": {\n", indent);
 				fprintf(fp, "%s    \"throttled_usec\": %lu,\n", indent, throttled_usec);
 				fprintf(fp, "%s    \"nr_throttled\": %lu\n", indent, nr_throttled);
+				fprintf(fp, "%s  },\n", indent);
+			}
+
+			/* Add limits structure using existing cg_conf() */
+			snprintf(path, sizeof(path), "%s/%s", FINIT_CGPATH, group);
+			cg = cg_conf(path);
+
+			if (cg && (cg->cg_mem.min[0] || cg->cg_mem.max[0] ||
+				   cg->cg_cpu.weight[0] || cg->cg_cpu.max[0])) {
+				int has_memory = cg->cg_mem.min[0] || cg->cg_mem.max[0];
+				int has_cpu = cg->cg_cpu.weight[0] || cg->cg_cpu.max[0];
+
+				fprintf(fp, "%s  \"limits\": {\n", indent);
+
+				if (has_memory) {
+					fprintf(fp, "%s    \"memory\": {\n", indent);
+					if (cg->cg_mem.min[0]) {
+						if (!strcmp(cg->cg_mem.min, "max"))
+							fprintf(fp, "%s      \"min\": \"%s\"", indent, cg->cg_mem.min);
+						else
+							fprintf(fp, "%s      \"min\": %s", indent, cg->cg_mem.min);
+						if (cg->cg_mem.max[0])
+							fprintf(fp, ",\n");
+						else
+							fprintf(fp, "\n");
+					}
+					if (cg->cg_mem.max[0]) {
+						if (!strcmp(cg->cg_mem.max, "max"))
+							fprintf(fp, "%s      \"max\": \"%s\"\n", indent, cg->cg_mem.max);
+						else
+							fprintf(fp, "%s      \"max\": %s\n", indent, cg->cg_mem.max);
+					}
+					fprintf(fp, "%s    }", indent);
+					if (has_cpu)
+						fprintf(fp, ",\n");
+					else
+						fprintf(fp, "\n");
+				}
+
+				if (has_cpu) {
+					char cpu_burst[32];
+					char *quota, *period;
+					char max_copy[32];
+
+					fprintf(fp, "%s    \"cpu\": {\n", indent);
+
+					if (cg->cg_cpu.weight[0])
+						fprintf(fp, "%s      \"weight\": %s,\n", indent, cg->cg_cpu.weight);
+
+					if (cg->cg_cpu.max[0]) {
+						/* Split cpu.max into quota and period */
+						strlcpy(max_copy, cg->cg_cpu.max, sizeof(max_copy));
+						quota = strtok(max_copy, " ");
+						period = strtok(NULL, " ");
+
+						fprintf(fp, "%s      \"max\": {\n", indent);
+						if (quota) {
+							if (!strcmp(quota, "max"))
+								fprintf(fp, "%s        \"quota\": \"%s\"", indent, quota);
+							else
+								fprintf(fp, "%s        \"quota\": %s", indent, quota);
+							if (period)
+								fprintf(fp, ",\n");
+							else
+								fprintf(fp, "\n");
+						}
+						if (period)
+							fprintf(fp, "%s        \"period\": %s\n", indent, period);
+						fprintf(fp, "%s      }", indent);
+
+						/* Check for cpu.max.burst (kernel >= 5.14) */
+						if (cgroup_val(path, "cpu.max.burst", cpu_burst, sizeof(cpu_burst)))
+							fprintf(fp, ",\n%s      \"max_burst\": %s\n", indent, cpu_burst);
+						else
+							fprintf(fp, "\n");
+					}
+
+					fprintf(fp, "%s    }\n", indent);
+				}
+
 				fprintf(fp, "%s  },\n", indent);
 			}
 

@@ -146,7 +146,7 @@ char *pid_cgroup(int pid)
 	return NULL;
 }
 
-static char *cgroup_val(char *path, char *file, char *buf, size_t len)
+char *cgroup_val(char *path, char *file, char *buf, size_t len)
 {
 	char *val = NULL;
 	FILE *fp;
@@ -288,6 +288,7 @@ int cgroup_throttle(char *group, uint64_t *throttled_usec, uint64_t *nr_throttle
 	fclose(fp);
 	return 0;
 }
+
 
 static float cgroup_cpuload(struct cg *cg)
 {
