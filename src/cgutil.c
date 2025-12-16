@@ -382,17 +382,147 @@ struct cg *cg_stats(char *path)
 	return cg;
 }
 
-/* query config */
+/*
+ * Compare two memory limit values, returning the more restrictive one.
+ * For memory.max: smaller value wins (except "max" means unlimited)
+ * For memory.min: larger value wins (more protection)
+ */
+static uint64_t cmp_mem_limit(const char *a, const char *b, int is_max)
+{
+	uint64_t val_a, val_b;
+
+	if (!a || !a[0])
+		return b && b[0] ? strtoull(b, NULL, 10) : 0;
+	if (!b || !b[0])
+		return strtoull(a, NULL, 10);
+
+	/* Handle "max" (unlimited) */
+	if (!strcmp(a, "max"))
+		return !strcmp(b, "max") ? UINT64_MAX : strtoull(b, NULL, 10);
+	if (!strcmp(b, "max"))
+		return strtoull(a, NULL, 10);
+
+	val_a = strtoull(a, NULL, 10);
+	val_b = strtoull(b, NULL, 10);
+
+	if (is_max)
+		return val_a < val_b ? val_a : val_b;  /* min for max limit */
+	else
+		return val_a > val_b ? val_a : val_b;  /* max for min limit */
+}
+
+/*
+ * Compare two cpu.max values (format: "quota period")
+ * Returns the more restrictive quota (smallest quota/period ratio)
+ * Stores result in dst, up to len bytes
+ */
+static void cmp_cpu_max(const char *a, const char *b, char *dst, size_t len)
+{
+	char a_copy[32], b_copy[32];
+	char *a_quota, *a_period, *b_quota, *b_period;
+	uint64_t qa, pa, qb, pb;
+	double ratio_a, ratio_b;
+
+	if (!a || !a[0]) {
+		if (b && b[0])
+			strlcpy(dst, b, len);
+		else
+			dst[0] = 0;
+		return;
+	}
+	if (!b || !b[0]) {
+		strlcpy(dst, a, len);
+		return;
+	}
+
+	/* Parse a */
+	strlcpy(a_copy, a, sizeof(a_copy));
+	a_quota = strtok(a_copy, " ");
+	a_period = strtok(NULL, " ");
+
+	/* Parse b */
+	strlcpy(b_copy, b, sizeof(b_copy));
+	b_quota = strtok(b_copy, " ");
+	b_period = strtok(NULL, " ");
+
+	/* Handle "max" quota (unlimited) */
+	if (a_quota && !strcmp(a_quota, "max")) {
+		strlcpy(dst, b, len);
+		return;
+	}
+	if (b_quota && !strcmp(b_quota, "max")) {
+		strlcpy(dst, a, len);
+		return;
+	}
+
+	/* Compare ratios (quota/period) - smaller ratio is more restrictive */
+	if (!a_quota || !a_period || !b_quota || !b_period) {
+		strlcpy(dst, a, len);  /* fallback */
+		return;
+	}
+
+	qa = strtoull(a_quota, NULL, 10);
+	pa = strtoull(a_period, NULL, 10);
+	qb = strtoull(b_quota, NULL, 10);
+	pb = strtoull(b_period, NULL, 10);
+
+	if (pa == 0 || pb == 0) {
+		strlcpy(dst, a, len);  /* fallback */
+		return;
+	}
+
+	ratio_a = (double)qa / (double)pa;
+	ratio_b = (double)qb / (double)pb;
+
+	strlcpy(dst, ratio_a <= ratio_b ? a : b, len);
+}
+
+/* query config with hierarchical limit resolution */
 struct cg *cg_conf(char *path)
 {
 	static struct cg cg;
+	char parent[512];
+	char tmp[32];
+	uint64_t mem_min_val, mem_max_val;
 
+	/* Read initial values from the leaf cgroup */
 	cgroup_val(path, "memory.min", cg.cg_mem.min, sizeof(cg.cg_mem.min));
-	cgroup_memval(path, "memory.max", cg.cg_mem.max, sizeof(cg.cg_mem.max));
+	cgroup_val(path, "memory.max", cg.cg_mem.max, sizeof(cg.cg_mem.max));
 	cgroup_val(path, "cpu.weight", cg.cg_cpu.weight, sizeof(cg.cg_cpu.weight));
 	cgroup_val(path, "cpu.max",    cg.cg_cpu.max, sizeof(cg.cg_cpu.max));
 	cgroup_val(path, "cpuset.cpus.effective", cg.cg_cpu.set, sizeof(cg.cg_cpu.set));
 	cg.cg_vmsize = cgroup_uint64(path, "memory.current");
+
+	/* Walk up the hierarchy to find most restrictive limits */
+	strlcpy(parent, path, sizeof(parent));
+	while (strcmp(parent, FINIT_CGPATH) != 0) {
+		char *slash = strrchr(parent, '/');
+		if (!slash || slash == parent)
+			break;
+		*slash = '\0';  /* Move up one level */
+
+		/* Compare and update memory.min (take maximum) */
+		if (cgroup_val(parent, "memory.min", tmp, sizeof(tmp))) {
+			mem_min_val = cmp_mem_limit(cg.cg_mem.min, tmp, 0);
+			if (mem_min_val == UINT64_MAX)
+				strlcpy(cg.cg_mem.min, "max", sizeof(cg.cg_mem.min));
+			else
+				snprintf(cg.cg_mem.min, sizeof(cg.cg_mem.min), "%lu", mem_min_val);
+		}
+
+		/* Compare and update memory.max (take minimum) */
+		if (cgroup_val(parent, "memory.max", tmp, sizeof(tmp))) {
+			mem_max_val = cmp_mem_limit(cg.cg_mem.max, tmp, 1);
+			if (mem_max_val == UINT64_MAX)
+				strlcpy(cg.cg_mem.max, "max", sizeof(cg.cg_mem.max));
+			else
+				snprintf(cg.cg_mem.max, sizeof(cg.cg_mem.max), "%lu", mem_max_val);
+		}
+
+		/* Compare and update cpu.max (take most restrictive) */
+		if (cgroup_val(parent, "cpu.max", tmp, sizeof(tmp)))
+			cmp_cpu_max(cg.cg_cpu.max, tmp, cg.cg_cpu.max, sizeof(cg.cg_cpu.max));
+	}
 
 	return &cg;
 }

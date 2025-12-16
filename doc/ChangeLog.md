@@ -33,6 +33,8 @@ All relevant changes are documented in this file.
   scroll wheel and Shift+PgUp/PgDn sometimes would not work properly
 - Fix flickering and artifacts in `initctl top`
 - Fix file descriptor leak in `initctl top`
+- Fix incorrect "max" limit reporting in `initctl [top|cgroup|--json]` output
+  for child cgroups.  Resolves effective limits by walking the cgroup hierarchy
 - Ensure mount/unmount skips `noauto` entries
 
 
