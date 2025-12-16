@@ -728,13 +728,24 @@ int show_cgps(char *arg)
 
 static void cgtop(uev_t *w, void *arg, int events)
 {
+	static int first = 1;
 	int lines;
 
 	(void)w;
 	(void)events;
 
-	/* Move cursor to home instead of clearing screen to avoid flicker */
-	fputs("\e[H", stdout);
+	/* Re-probe screen size in case terminal was resized */
+	ttinit(1);
+
+	/* Clear screen on first run to remove any artifacts */
+	if (first) {
+		fputs("\e[?7l\e[2J\e[H", stdout);  /* Disable line wrap, clear, home */
+		first = 0;
+	} else {
+		/* Move cursor to home instead of clearing screen to avoid flicker */
+		fputs("\e[H", stdout);
+	}
+
 	lines = 0;
 	if (heading) {
 		print_header(" VmSIZE     RSS   VmLIB  %%MEM  %%CPU  GROUP");
@@ -749,6 +760,7 @@ static void cgtop(uev_t *w, void *arg, int events)
 
 static void cleanup(void)
 {
+	fputs("\e[?7h", stdout);	/* Re-enable line wrap */
 	ttcooked();
 	showcursor();
 	puts("");
@@ -798,6 +810,9 @@ int show_cgtop(char *arg)
 
 	if (!hcreate(ttrows + 25))
 		ERR(70, "failed creating hash table");
+
+	/* Ensure we have correct terminal size before starting */
+	ttinit(1);
 
 	sysinfo(&si);
 	total_ram = si.totalram * si.mem_unit;

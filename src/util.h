@@ -95,11 +95,11 @@ int   fismnt       (char *dir);
 int   fistmpfs     (char *dir);
 
 #ifdef HAVE_TERMIOS_H
-int     ttinit     (void);
+int     ttinit     (int probe_size);
 int     ttraw      (void);
 int     ttcooked   (void);
 #else
-#define ttinit()   ttcols
+#define ttinit(v)  ttcols
 #define ttraw()    0
 #define ttcooked() 0
 #endif

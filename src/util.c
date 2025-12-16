@@ -687,7 +687,7 @@ int fistmpfs(char *dir)
  * Called by initctl, and by finit at boot and shutdown, to
  * (re)initialize the screen size for print() et al.
  */
-int ttinit(void)
+int ttinit(int probe_size)
 {
 	struct pollfd fd = { STDIN_FILENO, POLLIN, 0 };
 	struct winsize ws = { 0 };
@@ -706,6 +706,9 @@ int ttinit(void)
 		tc.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 		tcsetattr(STDERR_FILENO, TCSANOW, &tc);
 	}
+
+	if (probe_size)
+		goto fallback;
 
 	/* 1. Try TIOCWINSZ to query window size from kernel */
 	if (!ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws)) {

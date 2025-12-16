@@ -1724,7 +1724,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (interactive)
-		ttinit();
+		ttinit(0);
 
 	return cmd_parse(argc - optind, &argv[optind], command);
 }
