@@ -89,6 +89,9 @@ void console_init(void)
 	/* Reset attributes, background and foreground color  */
 	dprint(STDOUT_FILENO, "\033[49m\033[39m\e[2J", 14);
 
+	/* Hide cursor while we boot up.  */
+	dprint(STDOUT_FILENO, "\033[?25l", 6);
+
 	log_init();
 }
 
