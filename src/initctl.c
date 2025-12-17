@@ -33,11 +33,6 @@
 #include <time.h>
 #include <utmp.h>
 #include <arpa/inet.h>
-#ifdef _LIBITE_LITE
-# include <libite/lite.h>
-#else
-# include <lite/lite.h>
-#endif
 
 #include "initctl.h"
 #include "client.h"
@@ -45,7 +40,6 @@
 #include "serv.h"
 #include "service.h"
 #include "cgutil.h"
-#include "util.h"
 #include "utmp-api.h"
 
 struct cmd {
@@ -124,7 +118,7 @@ void print_header(const char *fmt, ...)
 			fputc('=', stdout);
 		fputs("\n", stdout);
 	} else {
-		char buf[ttcols];
+		char buf[ttcols - 9];
 
 		vsnprintf(buf, sizeof(buf), fmt, ap);
 		printheader(stdout, buf, 0);

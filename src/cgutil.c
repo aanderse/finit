@@ -29,11 +29,6 @@
 #include <stdlib.h>
 #include <search.h>
 #include <inttypes.h>
-#ifdef _LIBITE_LITE
-# include <libite/lite.h>
-#else
-# include <lite/lite.h>
-#endif
 #include <sys/sysinfo.h>		/* sysinfo() */
 
 #include "cgutil.h"
@@ -546,10 +541,8 @@ static int cgroup_filter(const struct dirent *entry)
 int cgroup_tree(char *path, char *pfx, int mode, int pos)
 {
 	struct dirent **namelist = NULL;
-	char s[32], r[32], l[32];
-	char row[ttcols + 9];		/* + control codes */
+	char s[32], r[32], l[32], row[1024];
 	size_t rlen = sizeof(row) - 1;
-	size_t rplen = rlen - 9;
 	struct stat st;
 	struct cg *cg;
 	char buf[512];
@@ -580,7 +573,7 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 		switch (mode) {
 		case 1:
 			cg = cg_stats(path);
-			snprintf(row, rplen, "\r %6.6s  %6.6s  %6.6s %5.1f %5.1f  %s",
+			snprintf(row, rlen, " %6.6s  %6.6s  %6.6s %5.1f %5.1f  %s",
 				 memsz(cg->cg_vmsize, s, sizeof(s)),
 				 memsz(cg->cg_rss,    r, sizeof(r)),
 				 memsz(cg->cg_vmlib,  l, sizeof(l)),
@@ -588,18 +581,17 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 			break;
 		case 2:
 			cg = cg_conf(path);
-			snprintf(row, rplen, "\r%6.6s [%-6.6s%6.6s] %6s [%-6.6s%6.6s] %s",
+			snprintf(row, rlen, "%6.6s [%-6.6s%6.6s] %6s [%-6.6s%6.6s] %s",
 				 memsz(cg->cg_vmsize, s, sizeof(s)),
 				 cg->cg_mem.min, cg->cg_mem.max, cg->cg_cpu.set,
 				 cg->cg_cpu.weight, cg->cg_cpu.max, path);
 			break;
 		default:
-			strlcpy(row, "\r", rplen);
-			strlcat(row, path, rplen);
+			strlcpy(row, path, rlen);
 			break;
 		}
 
-		printf("%s%s\n", row, CLREOL);
+		printf("\r%s%s\n", row, CLREOL);
 		pos++;
 		if (pos >= ttrows - 1)
 			goto out;
@@ -620,41 +612,34 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 			/* skip kernel threads for now (no cmdline) */
 			cmdline = pid_cmdline(pid);
 			if (cmdline) {
-				char proc[ttcols];
+				char proc[512];  /* Build full command, truncate row later */
 
 				switch (mode) {
 				case 1:
-					snprintf(row, rplen, "\r%37s", " ");
+					snprintf(row, rlen, "%37s", " ");
 					break;
 				case 2:
-					snprintf(row, rplen, "\r --.-- [            ]        [            ] ");
+					snprintf(row, rlen, " --.-- [            ]        [            ] ");
 					break;
 				default:
-					strlcpy(row, "\r", rplen);
+					row[0] = '\0';
 					break;
 				}
 
-				strlcat(row, pfx, rplen);
+				strlcat(row, pfx, rlen);
 				strlcat(row, ++i == num ? END : FORK, rlen);
 
 				snprintf(proc, sizeof(proc), " %d %s", pid, cmdline);
 
 				if (plain) {
-					strlcat(row, proc, rplen);
+					strlcat(row, proc, rlen);
 				} else {
-					int len;
-
 					strlcat(row, CDIM, rlen);
 					strlcat(row, proc, rlen);
-
-					len = strlen(row) + strlen(CRST);
-					if (len > (int)rlen)
-						row[rlen - strlen(CRST)] = 0;
-
 					strlcat(row, CRST, sizeof(row));
 				}
 
-				printf("%s%s\n", row, CLREOL);
+				printf("\r%s%s\n", row, CLREOL);
 				pos++;
 
 				free(cmdline);
@@ -681,8 +666,8 @@ out:
 			switch (mode) {
 			case 1:
 				cg = cg_stats(buf);
-				snprintf(row, rplen,
-					 "\r %6.6s  %6.6s  %6.6s %5.1f %5.1f  ",
+				snprintf(row, rlen,
+					 " %6.6s  %6.6s  %6.6s %5.1f %5.1f  ",
 					 memsz(cg->cg_vmsize, s, sizeof(s)),
 					 memsz(cg->cg_rss,    r, sizeof(r)),
 					 memsz(cg->cg_vmlib,  l, sizeof(l)),
@@ -690,30 +675,30 @@ out:
 				break;
 			case 2:
 				cg = cg_conf(buf);
-				snprintf(row, rplen, "\r%6.6s [%-6.6s%6.6s] %6.6s [%-6.6s%6.6s] ",
+				snprintf(row, rlen, "%6.6s [%-6.6s%6.6s] %6.6s [%-6.6s%6.6s] ",
 					 memsz(cg->cg_vmsize, s, sizeof(s)),
 					 cg->cg_mem.min, cg->cg_mem.max,
 					 cg->cg_cpu.set, cg->cg_cpu.weight, cg->cg_cpu.max);
 				break;
 			default:
-				strlcpy(row, "\r", rplen);
+				row[0] = '\0';
 				break;
 			}
 
-			strlcat(row, pfx, rplen);
+			strlcat(row, pfx, rlen);
 			if (i + 1 == n) {
-				strlcat(row, END, rplen);
+				strlcat(row, END, rlen);
 				snprintf(prefix, sizeof(prefix), "%s   ", pfx);
 			} else {
-				strlcat(row, FORK, rplen);
+				strlcat(row, FORK, rlen);
 				snprintf(prefix, sizeof(prefix), "%s%s  ", pfx, PIPE);
 			}
-			strlcat(row, " ", rplen);
+			strlcat(row, " ", rlen);
 
-			strlcat(row, nm,   rplen);
-			strlcat(row, "/ ", rplen);
+			strlcat(row, nm,   rlen);
+			strlcat(row, "/ ", rlen);
 
-			printf("%s%s\n", row, CLREOL);
+			printf("\r%s%s\n", row, CLREOL);
 			pos++;
 
 			pos = cgroup_tree(buf, prefix, mode, pos);
@@ -756,6 +741,7 @@ static void cgtop(uev_t *w, void *arg, int events)
 		lines = 1;
 	}
 	cgroup_tree(arg, NULL, 1, lines);
+
 	/* Clear from cursor to end of screen to remove leftover lines */
 	fputs("\e[J", stdout);
 	fflush(stdout);
