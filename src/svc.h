@@ -101,6 +101,7 @@ typedef enum {
 #define MAX_STR_LEN      64
 #define MAX_COND_LEN     (MAX_ARG_LEN * 3)
 #define MAX_USER_LEN     16
+#define MAX_NUM_SUPGROUPS 4
 #define MAX_NUM_FDS      64	     /* Max number of I/O plugins */
 #define MAX_NUM_SVC_ARGS 64
 
@@ -191,6 +192,8 @@ typedef struct svc {
 	/* Identity */
 	char	       username[MAX_USER_LEN];
 	char	       group[MAX_USER_LEN];
+	char	       supgroups[MAX_NUM_SUPGROUPS][MAX_USER_LEN];
+	int		       num_supgroups;
 	char	       capabilities[MAX_CMD_LEN];
 
 	/* Command, arguments and service description */
