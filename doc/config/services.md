@@ -116,9 +116,24 @@ Non-privileged Services
 
 Every `run`, `task`, or `service` can also list the privileges the
 `/path/to/cmd` should be executed with.  Prefix the command with
-`@USR[:GRP]`, group is optional, like this:
+`@USR[:GRP[,SUPP,...]]`, where group and supplementary groups are
+optional, like this:
 
     run [2345] @joe:users logger "Hello world"
+
+Finit reads the user's supplementary group membership from `/etc/group`
+automatically.  Any groups the user belongs to will be inherited by
+the service.
+
+To specify additional supplementary groups beyond those in `/etc/group`,
+append them after the primary group, separated by commas:
+
+    service @caddy:caddy,ssl-cert /usr/bin/caddy run
+
+This runs the `caddy` service as user `caddy`, with primary group
+`caddy`, inheriting any groups `caddy` is a member of in `/etc/group`,
+plus the additional `ssl-cert` group.  This is useful when a service
+needs access to resources owned by groups not listed in `/etc/group`.
 
 For multiple instances of the same command, e.g. a DHCP client or
 multiple web servers, add `:ID` somewhere between the `run`, `task`,
