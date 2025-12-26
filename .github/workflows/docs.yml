@@ -82,19 +82,18 @@ jobs:
 
       - name: Commit and push
         run: |
-          cd pages
-
+          cd pages/
           if [ -z "$(git status --porcelain)" ]; then
               exit 0
           fi
 
           SRC_REPO="${GITHUB_REPOSITORY}"
-          SRC_REF="$(git -C .. rev-parse --short HEAD)"
+          SRC_REF="${GITHUB_SHA::7}"
           SRC_URL="https://github.com/${SRC_REPO}/commit/${SRC_REF}"
 
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add .
+          git add -A
           git commit -m "docs: update from ${SRC_REPO}@${SRC_REF}" \
                      -m "For details, see ${SRC_URL}"
           git push
