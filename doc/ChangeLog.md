@@ -6,6 +6,8 @@ All relevant changes are documented in this file.
 [4.15][UNRELEASED]
 ---------------------
 
+The Finit project now has a new home page: <https://finit-project.github.io>
+
 ### Changes
 - Change default reboot to SOC reset from WDT reset, issue #460
 - Bump required versions of libite (v2.6.2) and libuev (v2.4.1)
@@ -24,11 +26,24 @@ All relevant changes are documented in this file.
   descriptive names like `/system/udevd/` instead of filename derived names
   like `/system/10-hotplug/`.  Syntax supports combining with other options:
   `cgroup.system,name:foo,delegate,cpu.max:10000`
+- Add support for Linux capabilities, allowing services to run with minimal
+  required privileges instead of running as root.  Uses the modern IAB API
+  (Inheritable, Ambient, Bounding) from libcap
+- Add support for supplementary groups for services.  Uses the syntax
+  `@user:group,sup1,sup2` to explicitly specify supplementary groups, in
+  addition to reading group membership from `/etc/group`
+- Add CPU throttled information to `initctl` output, showing when a service
+  has been throttled due to reaching its CPU quota
+- Add memory field to `initctl --json` status output for cgroup-enabled
+  services
+- Hide cursor at boot and shutdown for cleaner visual experience
 
 ### Fixes
 - Fix #453: RTC plugin fixes by Ming Liu, Atlas Copco
 - Fix #455: ANSI escape sequences logged by tools using glib logging,
   caused by use of PTY instead of pipe for stdout/stderr redirection
+- Fix #462: `/dev/pts` mounted with wrong mode (400 instead of 620), causing
+  permission issues with pseudo-terminals
 - getty: fix terminal scrollback issues after login on console TTY.  Mouse
   scroll wheel and Shift+PgUp/PgDn sometimes would not work properly
 - Fix flickering and artifacts in `initctl top`
