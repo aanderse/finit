@@ -1,6 +1,6 @@
 site_name: Documentation
 site_description: Fast Init for Linux Systems
-site_url: http://finit-project.github.io/finit/
+site_url: http://finit-project.github.io
 repo_url: https://github.com/finit-project/finit
 repo_name: Finit Project
 copyright: Copyright &copy; 2008-2025 Joachim Wiberg
@@ -11,6 +11,7 @@ extra_css:
 
 exclude_docs: |
   TODO.md
+  ChangeLog.md
 
 theme:
   logo: img/logo.png
