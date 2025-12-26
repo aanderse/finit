@@ -19,12 +19,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
 
 jobs:
   build:
@@ -48,21 +42,59 @@ jobs:
           pipx inject mkdocs mkdocs-callouts
 
       - name: Build documentation
-        run: mkdocs build
+        run: mkdocs build --clean
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload site artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: site
           path: site/
 
   deploy:
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Download site artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: site/
+
+      - name: Checkout pages repo
+        uses: actions/checkout@v4
+        with:
+          repository: finit-project/finit-project.github.io
+          path: pages
+          ssh-key: ${{ secrets.DOCS_DEPLOY_KEY }}
+          persist-credentials: true
+
+      - name: Setup SSH for push
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Sync site to pages repo
+        run: |
+          rsync -a --delete --exclude .git site/ pages/
+
+      - name: Commit and push
+        run: |
+          cd pages
+
+          if [ -z "$(git status --porcelain)" ]; then
+              exit 0
+          fi
+
+          SRC_REPO="${GITHUB_REPOSITORY}"
+          SRC_REF="$(git -C .. rev-parse --short HEAD)"
+          SRC_URL="https://github.com/${SRC_REPO}/commit/${SRC_REF}"
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "docs: update from ${SRC_REPO}@${SRC_REF}" \
+                     -m "For details, see ${SRC_URL}"
+          git push
