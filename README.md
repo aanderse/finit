@@ -1,17 +1,16 @@
 [![License Badge][]][License] [![Release Badge][]][Release] [![GitHub Status][]][GitHub] [![Coverity Status][]][Coverity Scan]
 <img align="right" src="doc/img/finit3.png" alt="Finit: Fast Init">
 
-Finit is an alternative to [SysV init](https://en.wikipedia.org/wiki/Init)
-and [systemd](https://www.freedesktop.org/wiki/Software/systemd/), focused
-on small and embedded Linux systems, although fully usable on server and
-[desktop systems][finix].
+Finit is a fast, simple alternative to [SysV init](https://en.wikipedia.org/wiki/Init)
+and [systemd](https://systemd.io), designed for small and embedded Linux systems.
+It can also run on desktop and server systems, like [finix][].
 
 > Reverse engineered from the [EeePC fastinit][]  
 > "gaps filled with frog DNA …"  
 > — [Claudio Matsuoka][]
 
 For detailed information, explore our extensive documentation  
-:books: **<http://finit-project.github.io/finit/>**
+:books: **<http://finit-project.github.io>**
 
 <div align="center">
   <img src="doc/img/alpine-screenshot2.png" alt="Alpine screenshot"><br/>
@@ -26,14 +25,14 @@ tutorials:
 * :milky_way: [Void Linux](contrib/void/)
 
 > [!NOTE]
-> Support for various Linux distributions does not mean Finit installs
-> easily on all architectures.  Bundled install scripts are examples for
-> standard installations, tested on amd64 (x86_64) systems.  Custom
-> setups, e.g., for embedded systems, can be found in the following
-> [Buildroot][] based examples: [myLinux][], [Infix][], or the plain
-> [br2-finit-demo](https://github.com/finit-project/br2-finit-demo).
+> Finit can run on various Linux distributions, but the bundled install
+> scripts are examples only. They have been tested on amd64 (x86_64) systems
+> with standard configurations.
+>
+> For embedded systems, see these [Buildroot][]-based examples:
+> [myLinux][], [Infix][], or [br2-finit-demo][].
 
-[finix]:            https://github.com/aanderse/finix
+[finix]:            https://github.com/finix-community/finix
 [Buildroot]:        https://buildroot.org
 [Infix]:            https://kernelkit.github.io
 [myLinux]:          https://github.com/troglobit/myLinux/
@@ -48,3 +47,4 @@ tutorials:
 [GitHub Status]:    https://github.com/finit-project/finit/actions/workflows/build.yml/badge.svg
 [Coverity Scan]:    https://scan.coverity.com/projects/3545
 [Coverity Status]:  https://scan.coverity.com/projects/3545/badge.svg
+[br2-finit-demo]:   https://github.com/finit-project/br2-finit-demo
