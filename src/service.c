@@ -496,14 +496,21 @@ static void compose_cmdline(svc_t *svc, char *buf, size_t len)
 static void set_uid(uid_t uid, svc_t *svc)
 {
 #ifdef HAVE_LIBCAP
-	if (cap_setuid(uid)) {
-		err(1, "%s: failed cap_setuid(%d)", svc_ident(svc, NULL, 0), uid);
-		return;
-	}
-
-	/* After dropping privileges, set the specific capabilities we need */
+	/*
+	 * Only use cap_setuid() if capabilities are configured,
+	 * otherwise it would (by design) drop all capabilities,
+	 * breaking root services
+	 */
 	if (svc->capabilities[0]) {
-		cap_iab_t cap_iab = cap_iab_from_text(svc->capabilities);
+		cap_iab_t cap_iab;
+
+		if (cap_setuid(uid)) {
+			err(1, "%s: failed cap_setuid(%d)", svc_ident(svc, NULL, 0), uid);
+			return;
+		}
+
+		/* After dropping privileges, set the specific capabilities we need */
+		cap_iab = cap_iab_from_text(svc->capabilities);
 		if (!cap_iab) {
 			err(1, "%s: failed parsing capabilities '%s'",
 			    svc_ident(svc, NULL, 0), svc->capabilities);
@@ -516,11 +523,10 @@ static void set_uid(uid_t uid, svc_t *svc)
 			    svc_ident(svc, NULL, 0));
 		}
 		cap_free(cap_iab);
-	}
-#else
+	} else
+#endif
 	if (setuid(uid))
 		err(1, "%s: failed setuid(%d)", svc_ident(svc, NULL, 0), uid);
-#endif
 }
 
 static pid_t service_fork(svc_t *svc)
@@ -1421,6 +1427,26 @@ static void parse_env(svc_t *svc, char *env)
 	strlcpy(svc->env, env, sizeof(svc->env));
 }
 
+static void parse_caps(svc_t *svc, char *caps)
+{
+#ifdef HAVE_LIBCAP
+	cap_iab_t cap_iab;
+
+	cap_iab = cap_iab_from_text(caps)
+	if (!cap_iab) {
+		err(1, "%s: failed parsing capabilities '%s'", svc_ident(svc, NULL, 0), caps);
+		memset(svc->capabilities, 0, sizeof(svc->capabilities));
+		return;
+	}
+
+	cap_free(cap_iab);
+	strlcpy(svc->capabilities, caps, sizeof(svc->capabilities));
+#else
+	(void)svc;
+	(void)caps;
+#endif
+}
+
 /*
  * the @cgroup argument can be, e.g., .system,mem.max:1234 or just the
  * default group with some cfg, e.g., :mem.max:1234 as a side effect,
@@ -2111,7 +2137,7 @@ int service_register(int type, char *cfg, struct rlimit rlimit[], char *file)
 	else
 		memset(svc->env, 0, sizeof(svc->env));
 	if (caps)
-		strlcpy(svc->capabilities, caps, sizeof(svc->capabilities));
+		parse_caps(svc, caps);
 	else
 		memset(svc->capabilities, 0, sizeof(svc->capabilities));
 	if (file)
