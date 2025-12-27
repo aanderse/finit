@@ -127,11 +127,12 @@ Resource Limits
 Set the hard or soft limit for a resource, or both if that argument is
 omitted.  `RESOURCE` is the lower-case `RLIMIT_` string constants from
 `setrlimit(2)`, without prefix.  E.g. to set `RLIMIT_CPU`, use `cpu`.
-  
+
 LIMIT is an integer that depends on the resource being modified, see
-the man page, or the kernel `/proc/PID/limits` file, for details.
-Finit versions before v3.1 used `infinity` for `unlimited`, which is
-still supported, albeit deprecated.
+[setrlimit(2)](https://man7.org/linux/man-pages/man2/setrlimit.2.html),
+or the kernel `/proc/PID/limits` file, for details.  Finit versions
+before v3.1 used `infinity` for `unlimited`, which is still supported,
+albeit deprecated.
 
     # No process is allowed more than 8MB of address space
     rlimit hard as 8388608
