@@ -2614,6 +2614,7 @@ static void service_cleanup_script(svc_t *svc)
 static void service_retry(svc_t *svc)
 {
 	char *restart_cnt = (char *)&svc->restart_cnt;
+	int rc = WEXITSTATUS(svc->status);
 	int timeout;
 
 	service_timeout_cancel(svc);
@@ -2622,6 +2623,18 @@ static void service_retry(svc_t *svc)
 		return;
 
 	if (svc->respawn) {
+		/*
+		 * Non-zero exit indicates an error that may not be resolved
+		 * by immediate retry. Add delay to prevent busy-loop and to
+		 * rate-limit retries, e.g. when TTY device doesn't exist.
+		 */
+		if (WIFEXITED(svc->status) && rc != 0) {
+			dbg("%s exited with error %d, delaying respawn ...",
+			    svc_ident(svc, NULL, 0), rc);
+			service_timeout_after(svc, svc->restart_tmo, service_retry);
+			return;
+		}
+
 		dbg("%s crashed/exited, respawning ...", svc_ident(svc, NULL, 0));
 		svc_unblock(svc);
 		service_step(svc);
@@ -2984,6 +2997,8 @@ restart:
 
 		if (!svc->pid) {
 			if (svc_is_daemon(svc) || svc_is_tty(svc)) {
+				int rc = WEXITSTATUS(svc->status);
+
 				svc_restarting(svc); /* BLOCK_RESTARTING */
 				svc_set_state(svc, SVC_HALTED_STATE);
 
@@ -2994,6 +3009,18 @@ restart:
 				 */
 				if (!svc->respawn) {
 					dbg("delayed restart of %s", svc_ident(svc, NULL, 0));
+					service_timeout_after(svc, svc->restart_tmo, service_retry);
+					goto done;
+				}
+
+				/*
+				 * Non-zero exit for respawn services (TTYs): delay retry
+				 * to prevent busy-loop and rate-limit retries
+				 */
+				if (WIFEXITED(svc->status) &&
+				    rc != 0) {
+					dbg("%s exited with error %d, delaying respawn ...",
+					    svc_ident(svc, NULL, 0), rc);
 					service_timeout_after(svc, svc->restart_tmo, service_retry);
 					goto done;
 				}

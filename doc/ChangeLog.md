@@ -37,6 +37,9 @@ The Finit project now has a new home page: <https://finit-project.github.io>
 - Add memory field to `initctl --json` status output for cgroup-enabled
   services
 - Hide cursor at boot and shutdown for cleaner visual experience
+- Services with `respawn` option (including TTYs) now delay retry on non-zero
+  exit codes instead of immediate respawn.  Prevents busy-loop when service
+  fails repeatedly, which on some systems may have a crippling effect
 
 ### Fixes
 - Fix #453: RTC plugin fixes by Ming Liu, Atlas Copco
