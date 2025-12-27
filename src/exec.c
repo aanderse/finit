@@ -286,6 +286,12 @@ static void prepare_tty(char *tty, speed_t speed, const char *procname, struct r
 	char name[80];
 	int fd, dummy;
 
+	/* Set proper protections and ownership */
+	if (chown(tty, 0, 0))
+		logit(LOG_ERR, "failed chowning 0:0 %s: %s", tty, strerror(errno));
+	if (chmod(tty, 0620))
+		logit(LOG_ERR, "failed chmoding 620 %s: %s", tty, strerror(errno));
+
 	fd = open(tty, O_RDWR);
 	if (fd < 0) {
 		logit(LOG_ERR, "Failed opening %s: %s", tty, strerror(errno));
