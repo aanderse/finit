@@ -40,6 +40,7 @@ jobs:
           pipx inject mkdocs mkdocs-material
           pipx inject mkdocs pymdown-extensions
           pipx inject mkdocs mkdocs-callouts
+          pipx inject mkdocs mkdocs-glightbox
 
       - name: Build documentation
         run: mkdocs build --clean
