@@ -1,4 +1,4 @@
-site_name: Documentation
+site_name: ""
 site_description: Fast Init for Linux Systems
 site_url: http://finit-project.github.io
 repo_url: https://github.com/finit-project/finit
@@ -23,7 +23,7 @@ theme:
     - navigation.instant
     - navigation.instant.progress
     - navigation.tracking
-#    - navigation.tabs
+    - navigation.tabs
 #    - navigation.sections
 #    - navigation.expand
 #    - navigation.top
@@ -50,20 +50,16 @@ theme:
         name: Switch to light mode
 
 nav:
-  - Introduction: index.md
-  - Example: example.md
-  - Features: features.md
-  - Commands & Status: initctl.md
-  - Rebooting & Halting: commands.md
-  - Runlevels: runlevels.md
-  - Runparts & /etc/rc.local: runparts.md
+  - Getting Started:
+    - Introduction: index.md
+    - Features: features.md
+    - Quick Example: example.md
+    - Building: build.md
   - Configuration:
     - Overview: config/index.md
     - Files & Layout: config/files.md
     - Conditions: conditions.md
-    - Cgroups: config/cgroups.md
-    - Capabilities: config/capabilities.md
-    - Environment Variables: config/env.md
+    - Runlevels: config/runlevels.md
     - One-shot Tasks: config/task-and-run.md
     - Services:
       - Syntax: config/services.md
@@ -72,24 +68,29 @@ nav:
       - Synchronization: config/service-sync.md
       - Wrapper Scripts: config/service-wrappers.md
     - Run-parts Scripts: config/runparts.md
-    - Runlevels: config/runlevels.md
     - TTY & Console: config/tty.md
-    - Templating: config/templating.md
+    - Environment Variables: config/env.md
     - Logging: config/logging.md
+    - Cgroups: config/cgroups.md
+    - Capabilities: config/capabilities.md
+    - Templating: config/templating.md
     - SysV Compatibility: config/sysv.md
     - Rescue Mode: config/rescue.md
     - Limitations: config/limitations.md
   - Usage:
-    - Building: build.md
-    - Command Line: cmdline.md
-    - Plugins: plugins.md
-    - Services: service.md
+    - Commands & Status: initctl.md
+    - Rebooting & Halting: commands.md
+    - Command Line Options: cmdline.md
+    - Managing Services: service.md
     - Signals: signals.md
   - Reference:
-    - Distributions: distro.md
-    - keventd: keventd.md
+    - Runlevels Overview: runlevels.md
+    - Runparts & rc.local: runparts.md
+    - Plugins: plugins.md
     - Watchdog: watchdog.md
+    - keventd: keventd.md
     - Service State Machine: state-machine.md
+    - Distributions: distro.md
     - Requirements: requirements.md
 
 markdown_extensions:
@@ -110,6 +111,11 @@ markdown_extensions:
 plugins:
   - search
   - callouts
+  - glightbox
 
 extra:
   homepage: https://finit-project.github.io/
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/finit-project/finit
+      name: Finit on GitHub
