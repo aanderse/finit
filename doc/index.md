@@ -1,7 +1,7 @@
 Introduction
 ============
 
-![Alpine screenshot](img/alpine-screenshot2.png){ align=right }
+![Alpine screenshot](img/alpine-screenshot2.png){ align=right width=40% }
 
 > Reverse engineered from the [EeePC fastinit][]  
 > "gaps filled with frog DNA …"  
@@ -17,26 +17,30 @@ PID file monitoring, or [conditions](conditions.md).
 Features
 --------
 
-  * [Runlevels][5], defined per service
-  * One-shot tasks, services (daemons), or [SysV init][4] start/stop scripts
-  * Runparts and `/etc/rc.local` support
+  * [Runlevels](config/runlevels.md), defined per service
+  * [One-shot tasks](config/task-and-run.md), [services](config/services.md) (daemons), or [SysV init][4] start/stop scripts
+  * [Runparts](config/runparts.md) and `/etc/rc.local` support
   * Process supervision similar to [systemd][]
-  * Sourcing environment files
-  * Conditions for network/process/custom dependencies
-  * Readiness notification; PID files (native) for synchronizing system
+  * Fine-grained privilege control:
+    - [Linux capabilities](config/capabilities.md) for minimal required privileges
+    - [Supplementary groups](config/services.md#non-privileged-services) for multi-group resource access
+  * [Sourcing environment files](config/service-env.md)
+  * [Conditions](conditions.md) for network/process/custom dependencies
+  * [Readiness notification](config/service-sync.md); PID files (native) for synchronizing system
     startup, support for systemd [sd_notify()][], or [s6 style][] too
   * Limited support for [tmpfiles.d(5)][] (no aging, attributes, or subvolumes)
-  * Pre/Post script actions
+  * [Pre/Post script actions](config/service-wrappers.md)
   * Rudimentary [templating support](config/templating.md)
-  * Tooling to enable/disable services
-  * Built-in getty
+  * [Tooling](initctl.md) to enable/disable services
+  * [Automatic reload](features.md#automatic-reload) of modified configuration files (optional)
+  * [Built-in getty](config/tty.md)
   * Built-in watchdog, with support for hand-over to [watchdogd][]
   * Built-in support for Debian/BusyBox [`/etc/network/interfaces`][3]
-  * Cgroups v2, both configuration and monitoring in `initctl top`
-  * Plugin support for customization
-  * Proper rescue mode with bundled `sulogin` for protected maintenance shell
+  * [Cgroups v2](config/cgroups.md), both configuration and monitoring in [`initctl top`](initctl.md)
+  * [Plugin support](plugins.md) for customization
+  * Proper [rescue mode](config/rescue.md) with bundled `sulogin` for protected maintenance shell
   * Integration with [watchdogd][] for full system supervision
-  * Logging to kernel ring buffer before `syslogd` has started, see the
+  * [Logging](config/logging.md) to kernel ring buffer before `syslogd` has started, see the
     recommended [sysklogd][] project for complete logging integration
 	and how to log to the kernel ring buffer from scripts using `logger`
 
@@ -64,6 +68,7 @@ and proposed extensions.
 [4]:                https://en.wikipedia.org/wiki/Init
 [5]:                https://en.wikipedia.org/wiki/Runlevel
 [6]:                https://github.com/finit-project/finit
+[dinit]:            https://davmac.org/projects/dinit/
 [systemd]:          https://www.freedesktop.org/wiki/Software/systemd/
 [sd_notify()]:      https://www.freedesktop.org/software/systemd/man/sd_notify.html
 [s6 style]:         https://skarnet.org/software/s6/notifywhenup.html

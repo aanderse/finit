@@ -1,6 +1,10 @@
 Finit Features
 ==============
 
+This page highlights some of Finit's key features with examples and usage
+scenarios. For complete documentation, configuration syntax, and advanced
+options, see the [Configuration](config/index.md) section.
+
 **Process Supervision**
 
 Start, monitor and restart services should they fail.
@@ -162,6 +166,28 @@ See the [Linux Capabilities](config/capabilities.md) section for detailed
 information, examples, and security best practices.
 
 
+**Supplementary Groups**
+
+Finit supports supplementary groups for services, allowing them to access
+resources owned by multiple groups without running as root. This complements
+capabilities for fine-grained privilege control.
+
+```conf
+service @caddy:caddy,ssl-cert /usr/bin/caddy run
+```
+
+In this example, the Caddy web server runs as user `caddy` with primary group
+`caddy`, but also has access to resources owned by the `ssl-cert` group (such
+as TLS certificates).
+
+Finit automatically reads the user's supplementary group membership from
+`/etc/group`. Additional groups can be specified explicitly using the syntax
+`@user:group,sup1,sup2,...`.
+
+See the [Non-privileged Services](config/services.md#non-privileged-services)
+section for more information.
+
+
 **Cgroups**
 
 Finit supports cgroups v2 and comes with the following default groups in
@@ -205,6 +231,61 @@ commands for details.
 > Systems that do not support cgroups, specifically version 2, are
 > automatically detected.  On such systems the above functionality is
 > disabled early at boot.
+
+
+**Service Management**
+
+Finit includes the `initctl` tool for managing services and system state at
+runtime. Key capabilities include:
+
+- **Enable/Disable services**: Manage which services start at boot by moving
+  configuration files between `/etc/finit.d/available` and
+  `/etc/finit.d/enabled`
+- **Start/Stop/Restart**: Control individual services without requiring a
+  full system reboot
+- **Status monitoring**: View service state, PID, uptime, and resource usage
+- **Condition management**: Set and clear user-defined conditions to control
+  service dependencies
+- **Cgroup monitoring**: Real-time process and resource monitoring with
+  `initctl top`, similar to the traditional `top` command but cgroup-aware
+
+Example commands:
+
+```bash
+initctl enable myservice          # Enable service for next boot
+initctl start myservice           # Start service now
+initctl status                    # Show all services
+initctl top                       # Interactive resource monitor
+initctl cond set usr/custom       # Set custom condition
+```
+
+See the [Commands & Status](initctl.md) section for complete documentation.
+
+
+**Rescue Mode**
+
+Finit provides a built-in rescue mode for system recovery and maintenance.
+When booting with the `rescue` kernel parameter, the system enters a
+protected maintenance shell.
+
+If the bundled `sulogin` program is available (from Finit, util-linux, or
+BusyBox), you'll be prompted for the root password before accessing the
+maintenance shell. This provides secure access for system recovery.
+
+If `sulogin` is not available, Finit falls back to reading
+`/lib/finit/rescue.conf` and boots the system in a limited maintenance mode.
+
+```
+# Kernel command line
+linux /vmlinuz root=/dev/sda1 rescue
+```
+
+In rescue mode, `initctl` will not work. After fixing the problem, use
+`reboot -f` to force reboot.
+
+Rescue mode can be disabled at build time with `configure --without-rescue`.
+
+See the [Rescue Mode](config/rescue.md) section for more information.
 
 
 [5]: https://en.wikipedia.org/wiki/Runlevel
