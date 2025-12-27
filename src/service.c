@@ -1432,7 +1432,7 @@ static void parse_caps(svc_t *svc, char *caps)
 #ifdef HAVE_LIBCAP
 	cap_iab_t cap_iab;
 
-	cap_iab = cap_iab_from_text(caps)
+	cap_iab = cap_iab_from_text(caps);
 	if (!cap_iab) {
 		err(1, "%s: failed parsing capabilities '%s'", svc_ident(svc, NULL, 0), caps);
 		memset(svc->capabilities, 0, sizeof(svc->capabilities));
