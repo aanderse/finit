@@ -115,9 +115,10 @@ Common capabilities include (see `man 7 capabilities` for the complete list):
    - Only grant what the service actually needs
    - Don't grant `cap_sys_admin` unless absolutely necessary
 
-2. **Always specify a user**
-   - Always use `@user` to drop to a non-root user
-   - Capabilities work best when combined with user separation
+2. **Specify a user (preferably non-root)**
+   - The `@user` directive is **required** for `caps:` to take effect
+   - For ambient capabilities (`^`), use a non-root user (not `@root`)
+   - Example: `@www-data`, `@nginx`, `@tcpdump`
 
 3. **Use ambient capabilities (`^`)**
    - The `^` prefix ensures capabilities survive exec()
@@ -162,15 +163,24 @@ ps -o user,pid,cmd -p $(pidof nginx)
 
 ## Limitations
 
-- Capabilities are only applied when both `@user` and `caps:` are specified
-- The service must drop to a non-root user for capabilities to be effective
+- The `caps:` directive requires `@user` to be specified for it to take effect
+  - Without `@user`, the service runs as root with full capabilities and
+    the `caps:` configuration is silently ignored
+  - You can use `@root` with `caps:`, but see below about ambient capabilities
+- For ambient capabilities (`^`, recommended), the user **must be non-root**
+  - Using `@root` with `caps:^...` will not work effectively, as ambient
+    capabilities are only added to the effective set when euid ≠ 0
+  - Use inheritable (`%`) or bounding (`!`) capabilities with `@root` if needed
+- Services without `caps:` use standard privilege dropping:
+  - Services with `@user` (non-root) have no special capabilities
+  - Services without `@user` run as root with full capabilities
 - Some very old binaries may not work correctly with ambient capabilities
 - File system capabilities are not managed by Finit (use `setcap` for that)
 
 ## See Also
 
-- `man 7 capabilities` - Linux capabilities overview
-- `man 3 cap_iab` - IAB capability API documentation
-- `man 8 setcap` - Set file capabilities
-- `man 8 getcap` - Query file capabilities
-- `man 1 capsh` - Capability shell wrapper
+- [capabilities(7)](https://man7.org/linux/man-pages/man7/capabilities.7.html) - Linux capabilities overview
+- [cap_iab(3)](https://man7.org/linux/man-pages/man3/cap_iab.3.html) - IAB capability API documentation
+- [setcap(8)](https://man7.org/linux/man-pages/man8/setcap.8.html) - Set file capabilities
+- [getcap(8)](https://man7.org/linux/man-pages/man8/getcap.8.html) - Query file capabilities
+- [capsh(1)](https://man7.org/linux/man-pages/man1/capsh.1.html) - Capability shell wrapper
