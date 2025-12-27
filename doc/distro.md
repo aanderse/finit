@@ -1,80 +1,139 @@
 Distro Recommendations
 ======================
 
-By default Finit uses the following directories for configuration files:
+Finit supports two directory layouts for managing service configurations:
+
+1. **Simple layout** - all configuration files directly in `/etc/finit.d/`
+2. **Distro layout** - separate `available/` and `enabled/` directories
+
+The distro layout is recommended for distributions that need clear
+separation between installed and enabled services, and want to use the
+`initctl enable/disable` commands for service management.
+
+## Simple Layout
+
+Finit supports using a flat directory structure:
 
 ```
     /etc/
-      |-- finit.d/              -- Regular (enabled) services
+      |-- finit.d/              -- All enabled services
       |    |-- lighttpd.conf
       |     `- *.conf
       |-- finit.conf            -- Bootstrap tasks and services
       :
 ```
 
-To enable a service one simply drops a small configuration file in the
-`/etc/finit.d/` directory.  This practice works with systems that
-keep disabled services elsewhere, or generates them as needed from some
-other tool.
+In this layout, you enable a service by placing its `.conf` file in
+`/etc/finit.d/` and disable it by removing the file. This works well for
+embedded systems or custom setups where services are managed by other tools
+or generated dynamically.
 
-Distributions, however, may want a clearer separation of enabled and
-available (installed but not enabled) services.  They may even want to
-customize the directories used, for brand labeling or uniformity.
+> [!NOTE] No tooling support
+> The `initctl enable/disable` commands **do not work** with this layout.
+> You must manually manage files in `/etc/finit.d/`.
 
-To that end Finit allows for a sub-directory `/etc/finit.d/available/`
-where installed but disabled services can reside.  Adding a symlink to a
-configuration in this sub-directory enables the service, but it will not
-be started.
+## Distro Layout
 
-To change the default configuration directory and configuration file
-names the Finit `configure` script offers the following two options at
-build time:
+Distributions typically want clearer separation between available (installed)
+and enabled services. Finit supports this through the `available/` and
+`enabled/` subdirectories:
+
+```
+    /etc/
+      |-- finit.d/
+      |    |-- available/      -- Installed but disabled services
+      |    |    |-- httpd.conf
+      |    |    |-- ntpd.conf
+      |    |    `-- sshd.conf
+      |    |-- enabled/        -- Enabled services (symlinks)
+      |    |     `- sshd.conf  -- Symlink to ../available/sshd.conf
+      |-- finit.conf           -- Bootstrap tasks and services
+      :
+```
+
+In this layout:
+- **available/** contains all installed service configurations
+- **enabled/** contains symlinks to configurations that should start at boot
+- Services are enabled/disabled by creating/removing symlinks
+
+> [!IMPORTANT] Recommended
+> This is the recommended layout.  In fact, the `initctl enable/disable`
+> commands **require** this layout with both `available/` and `enabled/`
+> directories and will not work without it.
+
+## Managing Services with initctl
+
+When using the distro layout, the `initctl` tool provides convenient commands
+for managing service configurations:
+
+```
+   list              List all .conf in /etc/finit.d/
+   enable   <CONF>   Enable .conf by creating symlink in enabled/
+   disable  <CONF>   Disable .conf by removing symlink from enabled/
+   reload            Reload *.conf in /etc/finit.d/ (activate changes)
+```
+
+Example usage:
+
+```bash
+# Enable sshd (creates enabled/sshd.conf -> ../available/sshd.conf)
+initctl enable sshd
+
+# Disable httpd (removes enabled/httpd.conf symlink)
+initctl disable httpd
+
+# Apply changes (reload configuration and start/stop services)
+initctl reload
+```
+
+The `.conf` suffix is optional - `initctl` adds it automatically if missing.
+
+> [!NOTE] Remember `initctl reload`
+> Changes made with `enable`/`disable` take effect only after running
+> `initctl reload`, unless Finit was built with `--enable-auto-reload`
+> which automatically detects and applies configuration changes.
+
+### Service Overrides
+
+The `initctl` tool only operates on symlinks in the `enabled/` directory.
+If you place a regular (non-symlink) `.conf` file directly in the parent
+directory (e.g., `/etc/finit.d/`), `initctl` will ignore it. This allows
+you to create system-level overrides that cannot be accidentally disabled
+by package management tools.
+
+## Customizing Directory Paths
+
+Distributions can customize the directory names and locations at build time
+using the Finit `configure` script:
 
 ```sh
 ./configure --with-rcsd=/etc/init.d --with-config=/etc/init.d/init.conf
 ```
 
-> [!IMPORTANT]
-> Remember `--prefix` et al as well, the default is likely *not* what
-> you want.  See the [build docs][1] for details.
+This changes the default `/etc/finit.d/` to `/etc/init.d/` and moves the
+bootstrap configuration file accordingly.
 
-The resulting directory structure is depicted below.  Please notice how
-`/etc/finit.conf` now resides in the same sub-directory as a non-symlink
-`/etc/init.d/init.conf`:
+> [!IMPORTANT] Remember to set `--prefix`
+> Remember to set `--prefix` and related options appropriately. The default
+> prefix is `/usr/local`, which is likely not what you want for a system
+> init. See the [build documentation][1] for details.
+
+Example with custom paths:
 
 ```
     /etc/
       |-- init.d/
-      |    |-- available/      -- Regular (disabled) services
+      |    |-- available/      -- Installed services
       |    |    |-- httpd.conf
       |    |    |-- ntpd.conf
       |    |    `-- sshd.conf
-      |    |-- sshd.conf       -- Symlink to available/sshd.conf
+      |    |-- enabled/        -- Enabled services (symlinks)
+      |    |     `- sshd.conf  -- Symlink to ../available/sshd.conf
       |     `- init.conf       -- Bootstrap tasks and services
       :
 ```
 
-To facilitate the task of managing configurations, be it a service,
-task, run, or other stanza, the `initctl` tool has a a few built-in
-commands:
-
-```
-   list              List all .conf in /etc/finit.d/
-   enable   <CONF>   Enable   .conf in /etc/finit.d/available/
-   disable  <CONF>   Disable  .conf in /etc/finit.d/[enabled/]
-   reload            Reload  *.conf in /etc/finit.d/ (activates changes)
-```
-
-To enable a service like `sshd.conf`, above, use
-
-    initctl enable sshd
-
-The `.conf` suffix is not needed, `initctl` adds it implicitly if it is
-missing.  The `disable` command works in a similar fashion.
-
-Note, however, that `initctl` only operates on symlinks and it always
-requires the `available/` sub-directory.  Any non-symlink in the parent
-directory, here `/etc/init.d/`, will be considered a system override by
-`initctl`.
+Notice how both the service directory and bootstrap configuration file now
+use the custom `/etc/init.d/` path specified at build time.
 
 [1]: build.md#configure
