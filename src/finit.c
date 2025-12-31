@@ -61,8 +61,9 @@
 #include "util.h"
 #include "utmp-api.h"
 
-uev_ctx_t *ctx  = NULL;		/* Main loop context */
-svc_t *wdog     = NULL;		/* No watchdog by default */
+uev_ctx_t *ctx;		/* Main loop context */
+svc_t     *wdog;	/* No watchdog by default */
+char      *arg0;	/* Saved for setprocnm() */
 
 
 /*
@@ -608,6 +609,9 @@ static int telinit(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
 	uev_ctx_t loop;
+
+	/* Save argv for setprocnm() in child processes */
+	arg0 = argv[0];
 
 	/* user calling telinit or init */
 	if (getpid() != 1) {

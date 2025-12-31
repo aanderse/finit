@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <sysexits.h>
 #include <sys/ioctl.h>
+#include <sys/prctl.h>
 #ifdef _LIBITE_LITE
 # include <libite/lite.h>
 #else
@@ -525,6 +526,29 @@ int in_container(void)
 	}
 
 	return 0;
+}
+
+/**
+ * setprocnm - Set process name in argv[0] for ps/pidof
+ * @name: New process name to set
+ *
+ * Changes the process name by modifying argv[0].  This is particularly
+ * useful for compatibility with BusyBox's pidof which reads cmdline
+ * from /proc/pid/cmdline rather than /proc/pid/comm.
+ */
+void setprocnm(const char *name)
+{
+	extern char *arg0;
+	size_t len;
+
+	if (!arg0 || !name)
+		return;
+
+	prctl(PR_SET_NAME, name, 0, 0, 0);
+
+	len = strlen(arg0);
+	memset(arg0, 0, len);
+	strlcpy(arg0, name, len + 1);
 }
 
 /**

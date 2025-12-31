@@ -72,6 +72,7 @@ int     print_result    (int fail);
 void    set_hostname    (char **hostname);
 void    networking      (int updown);
 int     in_container    (void);
+void    setprocnm       (const char *name);
 
 int     complete        (char *cmd, int pid);
 int     run             (char *cmd, char *log);

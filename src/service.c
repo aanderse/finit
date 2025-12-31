@@ -569,6 +569,8 @@ static pid_t service_fork(svc_t *svc)
 			return -1;
 		}
 #endif
+		if (svc_is_tty(svc))
+			setprocnm("getty");
 
 		sched_yield();
 
