@@ -362,7 +362,7 @@ restart:
 		/* Restore terse mode and run hooks before shutdown */
 		if (runlevel == 0 || runlevel == 6) {
 			/* Hide cursor, we're going down ... */
-			dprint(STDOUT_FILENO, "\033[?25l", 14);
+			dprint(STDOUT_FILENO, "\033[?25l", 6);
 
 			api_exit();
 			log_exit();
