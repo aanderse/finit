@@ -82,6 +82,17 @@ pid_t   run_sh          (char *tty, int noclear, int nowait, struct rlimit rlimi
 pid_t   run_bg          (char *cmd, char *args[]);
 int     run_parts       (char *dir, char *cmd, const char *env[], int progress, int sysv);
 
+
+static inline int checkenv(const char *env)
+{
+	const char *val = getenv(env);
+
+	if (!val || !val[0])
+		return 0;
+
+	return 1;
+}
+
 static inline int dprint(int fd, const char *s, size_t len)
 {
 	size_t loop = 3;

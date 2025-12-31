@@ -39,6 +39,7 @@
 #include <sys/sysmacros.h>
 #endif
 #include <sys/prctl.h>
+#include <paths.h>
 #ifdef _LIBITE_LITE
 # include <libite/lite.h>
 #else
@@ -621,6 +622,15 @@ int main(int argc, char *argv[])
 		 */
 		return EX_NOPERM;
 	}
+
+	/*
+	 * Sanity check critical environment variables.  We need PATH
+	 * and SHELL for early commands like mount in fs_init().
+	 */
+	if (!checkenv("PATH"))
+		setenv("PATH", _PATH_STDPATH, 1);
+	if (!checkenv("SHELL"))
+		setenv("SHELL", _PATH_BSHELL, 1);
 
 	/*
 	 * Need /dev, /proc, and /sys for console=, remount and cgroups
