@@ -180,16 +180,34 @@ char *str(char *fmt, ...)
 	return buf;
 }
 
+/*
+ * Return UID for the given user, with fallback to 'root' if user is unset.
+ * Fails with -1 only if user (incl. fallback) does not exist.
+ */
 int getuser(const char *username, char **home)
 {
 #ifdef ENABLE_STATIC
+	if (!username || !username[0])
+		username = "root";
+
 	if (home)
 		*home = "/";	/* XXX: Fixme */
 	return fgetint("/etc/passwd", "x:\n", username);
 #else
-	struct passwd *usr;
+	const struct passwd *usr;
 
-	if (!username || (usr = getpwnam(username)) == NULL)
+	if (!username || !username[0]) {
+		usr = getpwuid(0);
+		if (!usr)
+			return -1;
+
+		if (home)
+			*home = usr->pw_dir;
+		return usr->pw_uid;
+	}
+
+	usr = getpwnam(username);
+	if (!usr)
 		return -1;
 
 	if (home)
@@ -198,14 +216,30 @@ int getuser(const char *username, char **home)
 #endif
 }
 
+/*
+ * Return GID for the given group, with fallback to 'root' if group is unset.
+ * Fails with -1 only if user (incl. fallback) does not exist.
+ */
 int getgroup(const char *group)
 {
 #ifdef ENABLE_STATIC
+	if (!group || !group[0])
+		group = "root";
+
 	return fgetint("/etc/group", "x:\n", group);
 #else
-	struct group *grp;
+	const struct group *grp;
 
-	if ((grp = getgrnam(group)) == NULL)
+	if (!group || !group[0]) {
+		grp = getgrgid(0);
+		if (!grp)
+			return -1;
+
+		return grp->gr_gid;
+	}
+
+	grp = getgrnam(group);
+	if (!grp)
 		return -1;
 
 	return grp->gr_gid;

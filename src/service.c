@@ -556,6 +556,18 @@ static pid_t service_fork(svc_t *svc)
 #else
 		int uid = getuser(svc->username, &home);
 		int gid = getgroup(svc->group);
+
+		/* Check for invalid user/group - fail rather than silent fallback */
+		if (uid < 0) {
+			err(1, "%s: user '%s' not found, cannot start service",
+			    svc_ident(svc, NULL, 0), svc->username);
+			return -1;
+		}
+		if (gid < 0) {
+			err(1, "%s: group '%s' not found, cannot start service",
+			    svc_ident(svc, NULL, 0), svc->group);
+			return -1;
+		}
 #endif
 
 		sched_yield();
