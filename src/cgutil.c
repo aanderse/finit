@@ -37,7 +37,7 @@
 
 #define CDIM   plain ? "" : "\e[2m"
 #define CRST   plain ? "" : "\e[0m"
-#define CLREOL plain ? "" : "\e[K"		/* Clear to end of line */
+#define CLREOL plain ? "" : "\e[K"	/* Clear to end of line */
 
 #define NONE " "
 #define PIPE plain ? "| " : "│ "
@@ -630,14 +630,9 @@ int cgroup_tree(char *path, char *pfx, int mode, int pos)
 				strlcat(row, ++i == num ? END : FORK, rlen);
 
 				snprintf(proc, sizeof(proc), " %d %s", pid, cmdline);
-
-				if (plain) {
-					strlcat(row, proc, rlen);
-				} else {
-					strlcat(row, CDIM, rlen);
-					strlcat(row, proc, rlen);
-					strlcat(row, CRST, sizeof(row));
-				}
+				strlcat(row, CDIM, rlen);
+				strlcat(row, proc, rlen);
+				strlcat(row, CRST, sizeof(row));
 
 				printf("\r%s%s\n", row, CLREOL);
 				pos++;
