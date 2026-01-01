@@ -27,6 +27,7 @@ jobs:
           tar xf libite-2.6.2.tar.gz
           (cd libuev-2.4.1 && ./configure && make && sudo make install-strip)
           (cd libite-2.6.2 && ./configure && make && sudo make install-strip)
+          sudo ldconfig
       - name: Setting release variables ...
         id: build
         run: |
