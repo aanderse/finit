@@ -13,8 +13,6 @@ jobs:
     name: Build and upload release tarball
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-    env:
-      MAKEFLAGS: -j3
     steps:
       - uses: actions/checkout@v4
       - name: Installing dependencies ...
@@ -25,8 +23,8 @@ jobs:
           wget https://github.com/troglobit/libite/releases/download/v2.6.2/libite-2.6.2.tar.gz
           tar xf libuev-2.4.1.tar.xz
           tar xf libite-2.6.2.tar.gz
-          (cd libuev-2.4.1 && ./configure && make && sudo make install-strip)
-          (cd libite-2.6.2 && ./configure && make && sudo make install-strip)
+          (cd libuev-2.4.1 && ./configure && make -j9 && sudo make install-strip)
+          (cd libite-2.6.2 && ./configure && make -j9 && sudo make install-strip)
           sudo ldconfig
       - name: Setting release variables ...
         id: build
@@ -60,7 +58,7 @@ jobs:
           ver=$(./configure --version | head -1 | awk '{print $NF}')
           dir=finit-$ver/_build/sub
 
-          make release || (cat $dir/test/test-suite.log; false)
+          make -j1 release || (cat $dir/test/test-suite.log; false)
           ls -lF ../
           mkdir -p artifacts/
           mv ../*.tar.* artifacts/

@@ -40,23 +40,23 @@ jobs:
           wget https://github.com/troglobit/libite/releases/download/v2.6.2/libite-2.6.2.tar.gz
           tar xf libuev-2.4.1.tar.xz
           tar xf libite-2.6.2.tar.gz
-          (cd libuev-2.4.1 && ./configure && make && sudo make install-strip)
-          (cd libite-2.6.2 && ./configure && make && sudo make install-strip)
+          (cd libuev-2.4.1 && ./configure && make -j9 && sudo make install-strip)
+          (cd libite-2.6.2 && ./configure && make -j9 && sudo make install-strip)
           sudo ldconfig
       - uses: actions/checkout@v4
       - name: Static Finit
         run: |
           ./autogen.sh
           ./configure --prefix= --enable-static
-          make -j3 V=1
+          make -j9 V=1
       - name: Regular Finit
         run: |
           ./configure --prefix=/usr --exec-prefix= --sysconfdir=/etc --localstatedir=/var \
                       --enable-x11-common-plugin --enable-testserv-plugin --with-watchdog \
                       --with-keventd --with-libsystemd \
                       CFLAGS="-fsanitize=address -ggdb"
-          make -j3 clean
-          make -j3 V=1
+          make -j9 clean
+          make -j9 V=1
       - name: Install to /tmp
         run: |
           DESTDIR=/tmp make install-strip
@@ -78,7 +78,7 @@ jobs:
           sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
       - name: Run Unit Tests
         run: |
-          make check || (cat test/test-suite.log; false)
+          make -j1 check || (cat test/test-suite.log; false)
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4
