@@ -21,3 +21,6 @@ done
 for conf in 10-hotplug.conf; do
     find "$SYSROOT" -name $conf -delete
 done
+
+# Update dynamic linker cache for /usr/local/lib libraries
+ldconfig -r "$SYSROOT"

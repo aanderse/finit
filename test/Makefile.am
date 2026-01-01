@@ -10,6 +10,7 @@ EXTRA_DIST		 = skel/bin/busybox-x86_64.sha256 skel/sbin/service.sh skel/etc/env 
 			   skel/etc/rcS.d/S01abc.sh skel/etc/rcS.d/S02def.sh		    \
 			   skel/cdrom/.empty skel/dev/shm/.empty skel/dev/pts/.empty	    \
 			   skel/etc/inittab skel/etc/hostname skel/etc/fstab 		    \
+			   skel/etc/passwd skel/etc/group skel/etc/ld.so.conf		    \
 			   skel/etc/init.d/rcS skel/etc/init.d/rcK skel/tmp/.empty	    \
 			   skel/etc/finit.d/.empty skel/etc/finit.d/available/.empty	    \
 			   skel/etc/finit.d/enabled/.empty 				    \
