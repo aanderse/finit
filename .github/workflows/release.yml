@@ -55,7 +55,12 @@ jobs:
           sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
       - name: Build release ...
         run: |
-          make release || (cat test/test-suite.log; false)
+          # Get version for finding distcheck build directory
+          ./configure --version | head -1
+          ver=$(./configure --version | head -1 | awk '{print $NF}')
+          dir=finit-$ver/_build/sub
+
+          make release || (cat $dir/test/test-suite.log; false)
           ls -lF ../
           mkdir -p artifacts/
           mv ../*.tar.* artifacts/
