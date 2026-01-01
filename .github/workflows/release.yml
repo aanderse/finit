@@ -69,9 +69,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: finit-release-test-logs
-          path: |
-            finit-*/_build/sub/test/*.log
-            finit-*/_build/sub/test/sysroot/setup-sysroot.log
+          path: finit-*/_build/sub/test/*.log
       - name: Extract ChangeLog entry ...
         run: |
           awk '/-----*/{if (x == 1) exit; x=1;next}x' doc/ChangeLog.md \

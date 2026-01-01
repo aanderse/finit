@@ -2,9 +2,6 @@
 
 set -eu
 
-# Log setup output for debugging
-SETUP_LOG="${SYSROOT:-./sysroot}/setup-sysroot.log"
-exec > >(tee "$SETUP_LOG") 2>&1
 echo "=== Finit Test Sysroot Setup ==="
 echo "Date: $(date)"
 echo "SYSROOT: $SYSROOT"
