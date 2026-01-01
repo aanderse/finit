@@ -3,7 +3,7 @@ Change Log
 
 All relevant changes are documented in this file.
 
-[4.15][UNRELEASED]
+[4.15][] - 2026-01-01
 ---------------------
 
 The Finit project now has a new home page: <https://finit-project.github.io>
@@ -28,15 +28,22 @@ The Finit project now has a new home page: <https://finit-project.github.io>
   `cgroup.system,name:foo,delegate,cpu.max:10000`
 - Add support for Linux capabilities, allowing services to run with minimal
   required privileges instead of running as root.  Uses the modern IAB API
-  (Inheritable, Ambient, Bounding) from libcap
+  (Inheritable, Ambient, Bounding) from libcap.  By Aaron Andersen
 - Add support for supplementary groups for services.  Uses the syntax
   `@user:group,sup1,sup2` to explicitly specify supplementary groups, in
-  addition to reading group membership from `/etc/group`
+  addition to reading group membership from `/etc/group`.  By Aaron Andersen
 - Add CPU throttled information to `initctl` output, showing when a service
   has been throttled due to reaching its CPU quota
 - Add memory field to `initctl --json` status output for cgroup-enabled
   services
+- Default to user and group `root` (UID 0) for services
+- Always check that service user and group resolve to valid UID/GID pairs,
+  otherwise log error and refuse to start service
 - Hide cursor at boot and shutdown for cleaner visual experience
+- Rename `tty` services early from `init` -> `getty` even though no getty
+  process has been started yet.  This to aid in boot timing detection using
+  tools like `bootchartd` (BusyBox version or bootchart2 project) when Finit
+  only shows *"Please press Enter to activate this console."*
 - Services with `respawn` option (including TTYs) now delay retry on non-zero
   exit codes instead of immediate respawn.  Prevents busy-loop when service
   fails repeatedly, which on some systems may have a crippling effect
@@ -53,6 +60,9 @@ The Finit project now has a new home page: <https://finit-project.github.io>
 - Fix file descriptor leak in `initctl top`
 - Fix incorrect "max" limit reporting in `initctl [top|cgroup|--json]` output
   for child cgroups.  Resolves effective limits by walking the cgroup hierarchy
+- Fix issue with running Finit under `bootchartd` (bootchart2 project), always
+  set `PATH` and `SHELL` envs early, before attempting to mount `/proc` et al
+- Always reset ownership and permissions on TTY device nodes before launching getty
 - Ensure mount/unmount skips `noauto` entries
 
 
@@ -1903,7 +1913,7 @@ Major bug fix release.
 
 * Initial release
 
-[UNRELEASED]: https://github.com/finit-project/finit/compare/4.14...HEAD
+[UNRELEASED]: https://github.com/finit-project/finit/compare/4.15...HEAD
 [4.15]: https://github.com/finit-project/finit/compare/4.14...4.15
 [4.14]: https://github.com/finit-project/finit/compare/4.13...4.14
 [4.13]: https://github.com/troglobit/finit/compare/4.12...4.13
