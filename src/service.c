@@ -589,7 +589,7 @@ static pid_t service_fork(svc_t *svc)
 			int i, j, n = 0;
 
 			/* Get user's supplementary groups from /etc/group */
-			if (uid >= 0 && getgrouplist(svc->username, gid >= 0 ? gid : 0, supgids, &ngroups) >= 0)
+			if (getgrouplist(svc->username, gid, supgids, &ngroups) >= 0)
 				n = ngroups;
 
 			/* Add explicitly configured supplementary groups */
