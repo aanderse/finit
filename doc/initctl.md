@@ -65,6 +65,7 @@ Commands:
   halt                      Halt system
   poweroff                  Halt and power off system
   suspend                   Suspend system
+  switch-root NEWROOT [INIT]  Switch to new root filesystem (initramfs only)
 
   utmp     show             Raw dump of UTMP/WTMP db
 ```
@@ -143,3 +144,24 @@ Apr  8 12:37:46 alpine authpriv.info dropbear[2300]: Exit (root) from <192.168.1
 Apr  8 15:02:11 alpine authpriv.info dropbear[2634]: Child connection from 192.168.121.1:48576
 Apr  8 15:02:12 alpine authpriv.notice dropbear[2634]: Password auth succeeded for 'root' from 192.168.121.1:48576
 ```
+
+
+Switch Root
+-----------
+
+The `switch-root` command is used when running Finit in an initramfs to
+transition to the real root filesystem.  This is similar to the standalone
+`switch_root(8)` utility but integrated into Finit.
+
+```
+initctl switch-root /mnt/root [/sbin/init]
+```
+
+Requirements:
+
+- Must be run during runlevel S (bootstrap) or runlevel 1
+- The new root must be a mount point (different device than /)
+- Can only be used when Finit is running as PID 1 in an initramfs
+
+For complete documentation and usage examples, see the dedicated
+[Switch Root](switchroot.md) section.

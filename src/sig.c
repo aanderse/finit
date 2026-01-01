@@ -77,7 +77,9 @@
 #endif
 #include <string.h>		/* strerror() */
 #include <sched.h>
+#include <sys/mount.h>
 #include <sys/reboot.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #ifdef _LIBITE_LITE
 # include <libite/lite.h>

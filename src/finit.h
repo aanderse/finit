@@ -98,6 +98,7 @@
 #define INIT_CMD_HALT           21
 #define INIT_CMD_POWEROFF       22
 #define INIT_CMD_SUSPEND        23
+#define INIT_CMD_SWITCH_ROOT    24   /* Switch to new root filesystem */
 #define INIT_CMD_WDOG_HELLO     128  /* Watchdog register and hello */
 #define INIT_CMD_SVC_ITER       129
 #define INIT_CMD_SVC_QUERY      130

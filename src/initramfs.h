@@ -1,6 +1,5 @@
-/* Private header file for main finit daemon, not for plugins
+/* Initramfs switch_root support
  *
- * Copyright (c) 2008-2010  Claudio Matsuoka <cmatsuoka@gmail.com>
  * Copyright (c) 2008-2025  Joachim Wiberg <troglobit@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,46 +21,12 @@
  * THE SOFTWARE.
  */
 
-#ifndef FINIT_PRIVATE_H_
-#define FINIT_PRIVATE_H_
+#ifndef FINIT_INITRAMFS_H_
+#define FINIT_INITRAMFS_H_
 
-#include "svc.h"
-#include "plugin.h"
+int do_switch_root(const char *newroot, const char *newinit);
 
-#define SERVICE_INTERVAL_DEFAULT 300000 /* 5 mins */
-#define MATCH_CMD(l, c, x) \
-	(!strncasecmp(l, c, strlen(c)) && (x = (l) + strlen(c)))
-
-#define IS_RESERVED_RUNLEVEL(l) (l == 0 || l == 6 || l == INIT_LEVEL)
-
-extern char *finit_conf;
-extern char *finit_rcsd;
-extern svc_t *wdog;
-extern int   service_interval;
-extern char *fsck_mode;
-extern char *fsck_repair;
-
-extern uev_ctx_t *ctx;
-
-int          api_init         (uev_ctx_t *ctx);
-int          api_exit         (void);
-void         conf_flush_events(void);
-
-void         service_monitor  (pid_t lost, int status);
-
-const char  *plugin_hook_str  (hook_point_t no);
-int          plugin_exists    (hook_point_t no);
-
-void         plugin_run_hook  (hook_point_t no, void *arg);
-void         plugin_run_hooks (hook_point_t no);
-void         plugin_script_run(hook_point_t no);
-
-int          plugin_init      (uev_ctx_t *ctx);
-void         plugin_exit      (void);
-
-void         do_iterate_proc  (int (*cb)(int, void *), void *data);
-
-#endif /* FINIT_PRIVATE_H_ */
+#endif /* FINIT_INITRAMFS_H_ */
 
 /**
  * Local Variables:
