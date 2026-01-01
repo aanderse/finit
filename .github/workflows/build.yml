@@ -80,7 +80,10 @@ jobs:
         run: |
           make check || (cat test/test-suite.log; false)
       - name: Upload Test Results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: finit-test-${{ matrix.compiler }}
-          path: test/*.log
+          path: |
+            test/*.log
+            test/sysroot/setup-sysroot.log

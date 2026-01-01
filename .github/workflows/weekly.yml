@@ -59,3 +59,11 @@ jobs:
           ver=$(/tmp/sbin/initctl -V | awk '/Finit.*/ {print $2;}')
           dir=finit-$ver/_build/sub
           make -j1 distcheck || (cat $dir/test/test-suite.log; false)
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finit-weekly-test-logs
+          path: |
+            finit-*/_build/sub/test/*.log
+            finit-*/_build/sub/test/sysroot/setup-sysroot.log

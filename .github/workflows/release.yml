@@ -59,6 +59,14 @@ jobs:
           ls -lF ../
           mkdir -p artifacts/
           mv ../*.tar.* artifacts/
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finit-release-test-logs
+          path: |
+            finit-*/_build/sub/test/*.log
+            finit-*/_build/sub/test/sysroot/setup-sysroot.log
       - name: Extract ChangeLog entry ...
         run: |
           awk '/-----*/{if (x == 1) exit; x=1;next}x' doc/ChangeLog.md \
