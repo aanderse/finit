@@ -42,7 +42,6 @@
 #include "cond.h"
 #include "conf.h"
 #include "helpers.h"
-#include "initramfs.h"
 #include "log.h"
 #include "plugin.h"
 #include "private.h"
@@ -250,7 +249,7 @@ static void bypass_shutdown(void *unused)
  * Handle switch_root API command.
  * Parses data: "newroot\0newinit\0"
  * Sends ACK before attempting switch_root since it doesn't return on success.
- * Returns: result from do_switch_root() on failure, doesn't return on success.
+ * Returns: result from switch_root() on failure, doesn't return on success.
  */
 static int do_switch_root_api(int sd, struct init_request *rq)
 {
@@ -271,7 +270,7 @@ static int do_switch_root_api(int sd, struct init_request *rq)
 
 	/*
 	 * Send ACK first, since we won't return from
-	 * do_switch_root() on success.
+	 * switch_root() on success.
 	 */
 	rq->cmd = INIT_CMD_ACK;
 	if (write(sd, rq, sizeof(*rq)) != sizeof(*rq))
@@ -279,7 +278,7 @@ static int do_switch_root_api(int sd, struct init_request *rq)
 	close(sd);
 
 	/* This does not return on success */
-	result = do_switch_root(newroot, newinit);
+	result = switch_root(newroot, newinit);
 	if (result)
 		logit(LOG_ERR, "switch_root failed: %s", strerror(errno));
 

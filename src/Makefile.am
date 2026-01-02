@@ -63,7 +63,7 @@ finit_SOURCES      = api.c	cgroup.c	cgroup.h	\
 		     exec.c	finit.c		finit.h		\
 		     		stty.c				\
 		     helpers.c	helpers.h			\
-		     initramfs.c initramfs.h			\
+		     initramfs.c				\
 		     iwatch.c   iwatch.h			\
 		     log.c	log.h				\
 		     mdadm.c	mount.c				\

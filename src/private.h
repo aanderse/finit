@@ -59,7 +59,8 @@ void         plugin_script_run(hook_point_t no);
 int          plugin_init      (uev_ctx_t *ctx);
 void         plugin_exit      (void);
 
-void         do_iterate_proc  (int (*cb)(int, void *), void *data);
+void         iterate_proc     (int (*cb)(int, void *), void *data);
+int          switch_root      (const char *newroot, const char *newinit);
 
 #endif /* FINIT_PRIVATE_H_ */
 

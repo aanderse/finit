@@ -43,7 +43,6 @@
 #include "finit.h"
 #include "cond.h"
 #include "helpers.h"
-#include "initramfs.h"
 #include "log.h"
 #include "plugin.h"
 #include "private.h"
@@ -142,7 +141,7 @@ static int kill_cb(int pid, void *data)
  * This function does not return on success - it exec's the new init.
  * On failure, it returns -1 and sets errno.
  */
-int do_switch_root(const char *newroot, const char *newinit)
+int switch_root(const char *newroot, const char *newinit)
 {
 	struct stat newroot_st, oldroot_st;
 	char init_path[PATH_MAX];
@@ -209,11 +208,11 @@ int do_switch_root(const char *newroot, const char *newinit)
 
 	/* Kill remaining processes (except kernel threads and ourselves) */
 	signo = SIGTERM;
-	do_iterate_proc(kill_cb, &signo);
+	iterate_proc(kill_cb, &signo);
 	do_usleep(500000);	/* Give them 500ms */
 
 	signo = SIGKILL;
-	do_iterate_proc(kill_cb, &signo);
+	iterate_proc(kill_cb, &signo);
 
 	/* Reap zombies */
 	while (waitpid(-1, NULL, WNOHANG) > 0)
