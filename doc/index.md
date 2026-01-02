@@ -39,6 +39,7 @@ Features
   * [Cgroups v2](config/cgroups.md), both configuration and monitoring in [`initctl top`](initctl.md)
   * [Plugin support](plugins.md) for customization
   * Proper [rescue mode](config/rescue.md) with bundled `sulogin` for protected maintenance shell
+  * [Switch root](switchroot.md) support for initramfs-to-real-root transitions
   * Integration with [watchdogd][] for full system supervision
   * [Logging](config/logging.md) to kernel ring buffer before `syslogd` has started, see the
     recommended [sysklogd][] project for complete logging integration

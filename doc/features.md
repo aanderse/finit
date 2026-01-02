@@ -288,4 +288,27 @@ Rescue mode can be disabled at build time with `configure --without-rescue`.
 See the [Rescue Mode](config/rescue.md) section for more information.
 
 
+**Switch Root**
+
+Finit supports switching from an initramfs to a real root filesystem using
+the built-in `initctl switch-root` command.  This allows Finit to serve as
+the init system in an initramfs for early boot tasks (LUKS unlock, LVM
+activation, network boot) before transitioning to the real root.
+
+```bash
+# In initramfs, after mounting the real root:
+initctl switch-root /mnt/root
+```
+
+The switch-root operation:
+
+1. Runs the `HOOK_SWITCH_ROOT` hook for cleanup
+2. Stops all services gracefully
+3. Moves virtual filesystems (`/dev`, `/proc`, `/sys`, `/run`) to the new root
+4. Deletes initramfs contents to free memory
+5. Pivots to the new root and execs the new init
+
+See the [Switch Root](switchroot.md) section for complete documentation.
+
+
 [5]: https://en.wikipedia.org/wiki/Runlevel

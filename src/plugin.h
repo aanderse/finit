@@ -81,6 +81,9 @@
 	CHOOSE(HOOK_SVC_RECONF,      "nop"),			\
 	CHOOSE(HOOK_RUNLEVEL_CHANGE, "nop"),			\
 								\
+	/* Switch root hook, before transitioning */		\
+	CHOOSE(HOOK_SWITCH_ROOT,     "hook/sys/switchroot"),	\
+								\
 	/* Shutdown hooks, runlevel [06] */			\
 	CHOOSE(HOOK_NETWORK_DN,      "hook/net/down"),		\
 	CHOOSE(HOOK_SHUTDOWN,        "hook/sys/shutdown"),	\

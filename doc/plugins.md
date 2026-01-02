@@ -205,6 +205,16 @@ hook points:
   new runlevel have been been stopped.  When the hook has completed,
   Finit continues to start all services in the new runlevel.
 
+### Switch Root Hooks
+
+* `HOOK_SWITCH_ROOT`, `hook/sys/switchroot`: Called when
+  `initctl switch-root` is issued, before the transition begins.  Use
+  this hook to save state, unmount initramfs-only filesystems, or perform
+  cleanup before switching to the new root.  Only runs when Finit is
+  operating as PID 1 in an initramfs.
+
+  See the [Switch Root](switchroot.md) section for more information.
+
 ### Shutdown Hooks
 
 * `HOOK_NETWORK_DN`, `hook/net/down`: Called right after having changed

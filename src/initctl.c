@@ -646,6 +646,59 @@ int do_halt    (char *arg) { return do_cmd(INIT_CMD_HALT);     }
 int do_poweroff(char *arg) { return do_cmd(INIT_CMD_POWEROFF); }
 int do_suspend (char *arg) { return do_cmd(INIT_CMD_SUSPEND);  }
 
+/**
+ * do_switch_root - Switch to a new root filesystem (initramfs only)
+ * @argc: Number of arguments (1 or 2)
+ * @argv: [0] = newroot path, [1] = optional init path
+ *
+ * This command is only valid during runlevel S (bootstrap) or 1 when
+ * running from an initramfs.  It stops all services, moves virtual
+ * filesystems, and exec's the new init.
+ */
+int do_switch_root(int argc, char *argv[])
+{
+	struct init_request rq = {
+		.magic = INIT_MAGIC,
+		.cmd   = INIT_CMD_SWITCH_ROOT,
+	};
+	char *newroot, *newinit = NULL;
+	size_t off;
+
+	if (argc < 1)
+		ERRX(2, "Usage: initctl switch-root NEWROOT [INIT]");
+
+	newroot = argv[0];
+	if (argc > 1)
+		newinit = argv[1];
+
+	/* Verify newroot exists */
+	if (access(newroot, F_OK))
+		ERR(1, "Cannot access %s", newroot);
+
+	/*
+	 * Pack both strings into rq.data with null separators:
+	 * "newroot\0newinit\0"
+	 */
+	strlcpy(rq.data, newroot, sizeof(rq.data));
+	off = strlen(newroot) + 1;
+
+	if (newinit && off < sizeof(rq.data) - 1)
+		strlcpy(rq.data + off, newinit, sizeof(rq.data) - off);
+
+	printf("Switching root to %s", newroot);
+	if (newinit)
+		printf(", init %s", newinit);
+	printf(" ...\n");
+
+	/*
+	 * On success, finit exec's new init and we lose connection.
+	 * A "failure" to read reply is actually expected on success.
+	 */
+	client_send(&rq, sizeof(rq));
+
+	return 0;
+}
+
 int utmp_show(char *file)
 {
 	struct utmp *ut;
@@ -1474,7 +1527,8 @@ static int usage(int rc)
 		"  reboot                    Reboot system\n"
 		"  halt                      Halt system\n"
 		"  poweroff                  Halt and power off system\n"
-		"  suspend                   Suspend system\n");
+		"  suspend                   Suspend system\n"
+		"  switch-root ROOT [INIT]   Switch to new root filesystem (initramfs)\n");
 
 	if (utmp)
 		fprintf(stderr,
@@ -1654,6 +1708,7 @@ int main(int argc, char *argv[])
 		{ "halt",     NULL, do_halt,      NULL, NULL  },
 		{ "poweroff", NULL, do_poweroff,  NULL, NULL  },
 		{ "suspend",  NULL, do_suspend,   NULL, NULL  },
+		{ "switch-root", NULL, NULL,    NULL, do_switch_root },
 
 		{ "utmp",     NULL, do_utmp,     &utmp, NULL  },
 		{ NULL, NULL, NULL, NULL, NULL  }

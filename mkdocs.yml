@@ -79,6 +79,7 @@ nav:
     - Limitations: config/limitations.md
   - Usage:
     - Commands & Status: initctl.md
+    - Switch Root: switchroot.md
     - Rebooting & Halting: commands.md
     - Command Line Options: cmdline.md
     - Managing Services: service.md

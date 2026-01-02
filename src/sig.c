@@ -77,7 +77,9 @@
 #endif
 #include <string.h>		/* strerror() */
 #include <sched.h>
+#include <sys/mount.h>
 #include <sys/reboot.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #ifdef _LIBITE_LITE
 # include <libite/lite.h>
@@ -206,7 +208,7 @@ static void fs_swapoff(void)
  *
  * https://www.freedesktop.org/wiki/Software/systemd/RootStorageDaemons/
  */
-void do_iterate_proc(int (*cb)(int, void *), void *data)
+void iterate_proc(int (*cb)(int, void *), void *data)
 {
 	DIR *dirp;
 
@@ -288,7 +290,7 @@ static int do_wait(int secs)
 			;
 		has_proc = 0;
 		iterations--;
-		do_iterate_proc(status_cb, &has_proc);
+		iterate_proc(status_cb, &has_proc);
 	}
 	while (has_proc && iterations > 0);
 
@@ -320,10 +322,10 @@ void do_shutdown(shutop_t op)
 	 * Tell remaining non-monitored processes to exit, give them
 	 * time to exit gracefully, 2 sec was customary, we go for 1.
 	 */
-	do_iterate_proc(kill_cb, &signo);
+	iterate_proc(kill_cb, &signo);
 	if (do_wait(1)) {
 		signo = SIGKILL;
-		do_iterate_proc(kill_cb, &signo);
+		iterate_proc(kill_cb, &signo);
 	}
 
 	/* Exit plugins gracefully */

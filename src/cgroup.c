@@ -34,6 +34,8 @@
 #endif
 #include <sys/mount.h>
 #include <sys/sysinfo.h>		/* get_nprocs_conf() */
+#include <sys/vfs.h>
+#include <linux/magic.h>
 
 #include "cgroup.h"
 #include "finit.h"
@@ -841,6 +843,7 @@ void cgroup_config(void)
 void cgroup_init(uev_ctx_t *ctx)
 {
 	int opts = MS_NODEV | MS_NOEXEC | MS_NOSUID;
+	int mounted = 0;
 	char buf[80];
 	FILE *fp;
 	int fd;
@@ -851,14 +854,36 @@ void cgroup_init(uev_ctx_t *ctx)
 #endif
 
 	if (mount("none", FINIT_CGPATH, "cgroup2", opts, NULL)) {
-		if (errno == ENOENT)
+		if (errno == EBUSY) {
+			/*
+			 * Already mounted - this happens after switch_root
+			 * when cgroups were moved from the initramfs.
+			 * Verify it's actually cgroup2 before proceeding.
+			 */
+			struct statfs sfs;
+
+			if (statfs(FINIT_CGPATH, &sfs) || sfs.f_type != CGROUP2_SUPER_MAGIC) {
+				logit(LOG_ERR, "Mount point %s busy but not cgroup2", FINIT_CGPATH);
+				avail = 0;
+				return;
+			}
+			dbg("cgroup2 already mounted at %s, reusing", FINIT_CGPATH);
+		} else if (errno == ENOENT) {
 			logit(LOG_INFO, "Kernel does not support cgroups v2, disabling.");
-		else if (errno == EPERM) /* Probably inside an unprivileged container */
+			avail = 0;
+			return;
+		} else if (errno == EPERM) {
+			/* Probably inside an unprivileged container */
 			logit(LOG_INFO, "Not allowed to mount cgroups v2, disabling.");
-		else
+			avail = 0;
+			return;
+		} else {
 			err(1, "Failed mounting cgroup v2");
-		avail = 0;
-		return;
+			avail = 0;
+			return;
+		}
+	} else {
+		mounted = 1;
 	}
 	avail = 1;
 
@@ -867,7 +892,8 @@ void cgroup_init(uev_ctx_t *ctx)
 	if (!fp) {
 		err(1, "Failed opening %s", FINIT_CGPATH "/cgroup.controllers");
 	abort:
-		umount(FINIT_CGPATH);
+		if (mounted)
+			umount(FINIT_CGPATH);
 		avail = 0;
 		return;
 	}
