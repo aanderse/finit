@@ -88,7 +88,7 @@ The syntax supports combining the name override with other options:
 
 Or with delegation:
 
-    service [2345] user:podman group:podman \
+    service [2345] @podman:podman \
         cgroup.containers,name:podman,delegate,mem.max:4G \
         /usr/bin/podman system service -- Podman API
 
@@ -102,12 +102,12 @@ Cgroup Delegation
 For services that need to create their own child cgroups (container runtimes
 like Docker, Podman, systemd-nspawn, LXC), use the `delegate` option:
 
-    service [2345] user:dockerd group:dockerd \
+    service [2345] @dockerd:dockerd \
         cgroup.system,delegate /usr/bin/dockerd -- Docker daemon
 
 Or with the old colon syntax:
 
-    service [2345] user:dockerd group:dockerd \
+    service [2345] @dockerd:dockerd \
         cgroup.system:delegate /usr/bin/dockerd -- Docker daemon
 
 This allows the container runtime to:
@@ -126,18 +126,18 @@ When delegation is enabled, Finit:
 
 **Requirements:**
 
-- The service should specify `user:` and `group:` for proper ownership
+- The service should specify `@user:group` for proper ownership
 - Controllers are delegated from the parent cgroup
 
 **Example with additional config (new syntax):**
 
-    service [2345] user:podman group:podman \
+    service [2345] @podman:podman \
         cgroup.containers,delegate,mem.max:4G \
         /usr/bin/podman system service -- Podman API
 
 **Or with old syntax:**
 
-    service [2345] user:podman group:podman \
+    service [2345] @podman:podman \
         cgroup.containers:delegate,mem.max:4G \
         /usr/bin/podman system service -- Podman API
 
