@@ -3,6 +3,29 @@ Change Log
 
 All relevant changes are documented in this file.
 
+[4.16][] - Unreleased
+---------------------
+
+### Changes
+
+- Add `initctl switch-root` command and plugin hook point.  Useful for
+  systems requiring early boot tasks like LUKS unlock, LVM activation,
+  or network boot before mounting the real root, by Aaron Andersen
+- Set USER and LOGNAME environment variables when dropping privileges.
+  Fixes issues with software like rootless Podman that determines user
+  identity from environment variables, by Aaron Andersen
+
+### Fixes
+- Fix #464: invalid user:group examples in cgroups.md
+- Fix #466: elogind path for Debian-based distros, by Jackie Liu
+- Fix #467: TTY services stuck in restart state after non-zero exit.
+  Throttling logic introduced in v4.15 had duplicate checks causing
+  infinite timer loop, and TTYs lacked default restart timeout
+- Fix handling of already-mounted cgroups in `cgroup_init()`, can occur
+  after switch_root or in container environments
+- Improve cgroups documentation clarity, grammar, and examples
+
+
 [4.15][] - 2026-01-01
 ---------------------
 
