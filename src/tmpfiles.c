@@ -568,7 +568,10 @@ static void tmpfiles(char *line)
 			if (!strc) {
 				if (type[1] != '+')
 					break;
-				rmrf(path);
+				if (fisdir(path))
+					rmrf(path);
+				else
+					erase(path);
 			}
 			mkparent(path, 0755);
 			if (!arg) {
