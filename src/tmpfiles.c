@@ -635,17 +635,44 @@ static void tmpfiles(char *line)
 		warn("Failed %s operation on path %s", type, path);
 }
 
+static void process_file(const char *fn)
+{
+	FILE *fp;
+
+	fp = fopen(fn, "r");
+	if (!fp) {
+		warn("Failed to open %s", fn);
+		return;
+	}
+
+	while (!feof(fp)) {
+		char *line;
+
+		line = fparseln(fp, NULL, NULL, NULL, FPARSELN_UNESCCOMM);
+		if (!line)
+			continue;
+
+		tmpfiles(line);
+		free(line);
+	}
+
+	fclose(fp);
+}
+
 static int usage(int rc)
 {
 	fprintf(stderr,
-		"Usage: tmpfiles [COMMAND...]\n"
+		"Usage: tmpfiles [OPTIONS] [CONFIGFILE...]\n"
 		"\n"
-		"Commands:\n"
+		"Options:\n"
 		"  -C, --clean               Clean files and directories based on age\n"
 		"  -c, --create              Create files and directories\n"
 		"  -d, --debug               Show developer debug messages\n"
 		"  -r, --remove              Remove files and directories marked for removal\n"
 		"  -h, --help                This help text\n"
+		"\n"
+		"If no CONFIGFILE is specified, all *.conf files in the standard\n"
+		"tmpfiles.d directories are processed.\n"
 		"\n");
 
 	return rc;
@@ -696,7 +723,16 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	/* If config files specified on command line, process only those */
+	if (optind < argc) {
+		for (int i = optind; i < argc; i++)
+			process_file(argv[i]);
+		return 0;
+	}
+
 	/*
+	 * No config files specified, process standard tmpfiles.d directories.
+	 *
 	 * Only the three last tmpfiles.d/ directories are defined in
 	 * tmpfiles.d(5) as system search paths.  Finit adds two more
 	 * before that to have Finit specific ones sorted first, and
@@ -723,7 +759,6 @@ int main(int argc, char *argv[])
 	for (i = 0; i < gl.gl_pathc; i++) {
 		char *fn = gl.gl_pathv[i];
 		size_t j;
-		FILE *fp;
 
 		/* check for overrides */
 		for (j = i + 1; j < gl.gl_pathc; j++) {
@@ -736,26 +771,12 @@ int main(int argc, char *argv[])
 		if (!fn)
 			continue; /* skip, override exists */
 
-		fp = fopen(fn, "r");
-		if (!fp)
-			continue;
-
-//		info("Parsing %s ...", fn);
-		while (!feof(fp)) {
-			char *line;
-
-			line = fparseln(fp, NULL, NULL, NULL, FPARSELN_UNESCCOMM);
-			if (!line)
-				continue;
-
-			tmpfiles(line);
-			free(line);
-		}
-
-		fclose(fp);
+		process_file(fn);
 	}
 
 	globfree(&gl);
+
+	return 0;
 }
 
 /**
