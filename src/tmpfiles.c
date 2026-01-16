@@ -577,8 +577,24 @@ static void tmpfiles(char *line)
 			if (glob(path, GLOB_NOESCAPE, NULL, &gl))
 				break;
 
-			for (size_t i = 0; i < gl.gl_pathc; i++)
-				rc += mksubsys(gl.gl_pathv[i], mode ?: 0755, user, group);
+			for (size_t i = 0; i < gl.gl_pathc; i++) {
+				char *p = gl.gl_pathv[i];
+				int uid, gid;
+
+				/* e only adjusts existing directories */
+				if (!fisdir(p))
+					continue;
+
+				uid = parse_uid(user);
+				gid = parse_gid(group);
+				if (gid < 0)
+					gid = 0;
+
+				if (mode)
+					chmod(p, mode);
+				if (uid >= 0 && chown(p, uid, gid))
+					warn("Failed chown(%s, %d, %d)", p, uid, gid);
+			}
 			break;
 		case 'f':
 		case 'F':
