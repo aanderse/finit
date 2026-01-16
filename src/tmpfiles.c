@@ -45,8 +45,8 @@
 
 int debug;
 
-int c_flag = 0;
-int r_flag = 0;
+int create_flag = 0;
+int remove_flag = 0;
 
 static int is_dir_empty(const char *path)
 {
@@ -318,7 +318,7 @@ static void tmpfiles(char *line)
 	strc = stat(path, &st);
 
 	// file and directory removal logic
-	if (r_flag) {
+	if (remove_flag) {
 		switch (type[0]) {
 		case 'b':
 		case 'c':
@@ -361,7 +361,7 @@ static void tmpfiles(char *line)
 	}
 
 	// file & directory creation logic
-	if (c_flag) {
+	if (create_flag) {
 		switch (type[0]) {
 		case 'b':
 			rc = parse_mm(arg, &major, &minor);
@@ -562,7 +562,7 @@ int main(int argc, char *argv[])
 	while ((c = getopt_long(argc, argv, "cdrh?", long_options, NULL)) != EOF) {
 		switch(c) {
 		case 'c':
-			c_flag = 1;
+			create_flag = 1;
 			break;
 
 		case 'd':
@@ -570,7 +570,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'r':
-			r_flag = 1;
+			remove_flag = 1;
 			break;
 
 		case 'h':
@@ -582,7 +582,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (c_flag + r_flag == 0) {
+	if (create_flag + remove_flag == 0) {
 		fprintf(stderr, "You need to specify at least one of --create or --remove.\n");
 		return 1;
 	}
