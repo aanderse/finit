@@ -304,6 +304,46 @@ static time_t parse_age(const char *age)
 	return val;
 }
 
+/**
+ * Parse user string - supports both names and numeric UIDs.
+ * Returns UID on success, -1 on failure.
+ */
+static int parse_uid(const char *user)
+{
+	long val;
+
+	if (!user || !user[0])
+		return 0;
+
+	/* Check if it's a numeric UID */
+	val = atonum(user);
+	if (val >= 0)
+		return val;
+
+	/* Not numeric, look up by name */
+	return getuser(user, NULL);
+}
+
+/**
+ * Parse group string - supports both names and numeric GIDs.
+ * Returns GID on success, -1 on failure.
+ */
+static int parse_gid(const char *group)
+{
+	long val;
+
+	if (!group || !group[0])
+		return 0;
+
+	/* Check if it's a numeric GID */
+	val = atonum(group);
+	if (val >= 0)
+		return val;
+
+	/* Not numeric, look up by name */
+	return getgroup(group);
+}
+
 /* Globals for do_clean() callback - nftw doesn't support user data */
 static time_t clean_age;
 static time_t clean_now;
@@ -512,10 +552,27 @@ static void tmpfiles(char *line)
 				rc = 0;
 			break;
 		case 'd':
-		case 'D':
+		case 'D': {
+			int uid, gid;
+			mode_t omask;
+
 			mkparent(path, 0755);
-			rc = mksubsys(path, mode ?: 0755, user, group);
+			omask = umask(0);
+			uid = parse_uid(user);
+			if (uid >= 0) {
+				gid = parse_gid(group);
+				if (gid < 0)
+					gid = 0;
+
+				rc = makedir(path, mode ?: 0755);
+				if (rc && errno == EEXIST)
+					rc = chmod(path, mode ?: 0755);
+				if (chown(path, uid, gid))
+					warn("Failed chown(%s, %d, %d)", path, uid, gid);
+			}
+			umask(omask);
 			break;
+		}
 		case 'e':
 			if (glob(path, GLOB_NOESCAPE, NULL, &gl))
 				break;
