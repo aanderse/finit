@@ -601,10 +601,6 @@ static void tmpfiles(char *line)
 			mkparent(path, 0755);
 			if (type[1] == '+' || type[0] == 'F') {
 				/* f+/F will create or truncate the file */
-				if (!arg) {
-					rc = create(path, mode ?: 0644, user, group);
-					break;
-				}
 				fp = fopen(path, "w+");
 			} else {
 				/* f will create the file if it doesn't exist */
@@ -613,8 +609,20 @@ static void tmpfiles(char *line)
 			}
 
 			if (fp) {
+				int uid, gid;
+
 				write_arg(fp, arg);
 				rc = fclose(fp);
+
+				/* Apply mode and ownership */
+				if (mode)
+					chmod(path, mode);
+				uid = parse_uid(user);
+				gid = parse_gid(group);
+				if (gid < 0)
+					gid = 0;
+				if (uid >= 0 && chown(path, uid, gid))
+					warn("Failed chown(%s, %d, %d)", path, uid, gid);
 			}
 			break;
 		case 'l': /* Finit extension, like 'L' but only if target exists */
