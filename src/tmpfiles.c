@@ -34,6 +34,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #ifdef _LIBITE_LITE
 # include <libite/lite.h>
 #else
@@ -45,8 +46,9 @@
 
 int debug;
 
-int c_flag = 0;
-int r_flag = 0;
+int create_flag = 0;
+int clean_flag = 0;
+int remove_flag = 0;
 
 static int is_dir_empty(const char *path)
 {
@@ -261,6 +263,122 @@ static void write_arg(FILE *fp, char *arg)
 	fputs(arg, fp);
 }
 
+/**
+ * Parse age string and return age in seconds.
+ * Returns 0 on invalid/empty age ("-" or NULL).
+ * Examples: "10d" = 864000, "1w" = 604800, "2h" = 7200
+ */
+static time_t parse_age(const char *age)
+{
+	time_t val;
+	char *end;
+
+	if (!age || !strcmp(age, "-") || !strcmp(age, "0"))
+		return 0;
+
+	errno = 0;
+	val = strtoul(age, &end, 10);
+	if (errno || end == age)
+		return 0;
+
+	switch (*end) {
+	case 'w':
+		val *= 7;
+		/* fallthrough */
+	case 'd':
+		val *= 24;
+		/* fallthrough */
+	case 'h':
+		val *= 60;
+		/* fallthrough */
+	case 'm':
+		val *= 60;
+		/* fallthrough */
+	case 's':
+	case '\0':
+		break;
+	default:
+		return 0;	/* unknown suffix */
+	}
+
+	return val;
+}
+
+/**
+ * Parse user string - supports both names and numeric UIDs.
+ * Returns UID on success, -1 on failure.
+ */
+static int parse_uid(const char *user)
+{
+	long val;
+
+	if (!user || !user[0])
+		return 0;
+
+	/* Check if it's a numeric UID */
+	val = atonum(user);
+	if (val >= 0)
+		return val;
+
+	/* Not numeric, look up by name */
+	return getuser(user, NULL);
+}
+
+/**
+ * Parse group string - supports both names and numeric GIDs.
+ * Returns GID on success, -1 on failure.
+ */
+static int parse_gid(const char *group)
+{
+	long val;
+
+	if (!group || !group[0])
+		return 0;
+
+	/* Check if it's a numeric GID */
+	val = atonum(group);
+	if (val >= 0)
+		return val;
+
+	/* Not numeric, look up by name */
+	return getgroup(group);
+}
+
+/* Globals for do_clean() callback - nftw doesn't support user data */
+static time_t clean_age;
+static time_t clean_now;
+
+static int do_clean(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftw)
+{
+	int is_dir;
+
+	/* Skip the root directory itself */
+	if (ftw->level == 0)
+		return 0;
+
+	is_dir = (tflag == FTW_D || tflag == FTW_DP);
+
+	/*
+	 * Conservative cleanup matching systemd-tmpfiles behavior:
+	 * - Files: keep if ANY of atime, ctime, mtime is recent
+	 * - Directories: keep if ANY of atime, mtime is recent (ctime
+	 *   excluded because cleanup itself updates directory ctime)
+	 */
+	if (clean_now - sb->st_mtime < clean_age)
+		return 0;	/* mtime is too new, keep it */
+
+	if (clean_now - sb->st_atime < clean_age)
+		return 0;	/* atime is too new, keep it */
+
+	if (!is_dir && clean_now - sb->st_ctime < clean_age)
+		return 0;	/* ctime is too new, keep it (files only) */
+
+	if (remove(fpath) && errno != ENOENT && errno != EBUSY)
+		warn("Failed cleaning %s", fpath);
+
+	return 0;
+}
+
 /*
  * The configuration format is one line per path, containing type, path,
  * mode, ownership, age, and argument fields. The lines are separated by
@@ -312,13 +430,12 @@ static void tmpfiles(char *line)
 		group = "root";
 
 	age = strtok(NULL, "\t ");
-	(void)age;		/* unused atm. */
 	arg = strtok(NULL, "\n");
 
 	strc = stat(path, &st);
 
 	// file and directory removal logic
-	if (r_flag) {
+	if (remove_flag) {
 		switch (type[0]) {
 		case 'b':
 		case 'c':
@@ -349,7 +466,7 @@ static void tmpfiles(char *line)
 			break;
 		case 'X':
 		case 'x':
-			dbg("Unsupported x/X command, ignoring %s, no support for clean at runtime.", path);
+			/* handled by clean_flag (--clean) */
 			break;
 		case 'Z':
 		case 'z':
@@ -360,8 +477,34 @@ static void tmpfiles(char *line)
 		}
 	}
 
+	/* age-based cleanup logic */
+	if (clean_flag) {
+		time_t max_age = parse_age(age);
+
+		/* Only process if age is specified */
+		if (max_age > 0) {
+			switch (type[0]) {
+			case 'd':
+			case 'D':
+			case 'e':
+				if (!fisdir(path))
+					break;
+				clean_age = max_age;
+				clean_now = time(NULL);
+				nftw(path, do_clean, 20, FTW_DEPTH | FTW_PHYS);
+				break;
+			case 'x':
+			case 'X':
+				/* exclusion patterns - not yet implemented */
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
 	// file & directory creation logic
-	if (c_flag) {
+	if (create_flag) {
 		switch (type[0]) {
 		case 'b':
 			rc = parse_mm(arg, &major, &minor);
@@ -409,26 +552,55 @@ static void tmpfiles(char *line)
 				rc = 0;
 			break;
 		case 'd':
-		case 'D':
+		case 'D': {
+			int uid, gid;
+			mode_t omask;
+
 			mkparent(path, 0755);
-			rc = mksubsys(path, mode ?: 0755, user, group);
+			omask = umask(0);
+			uid = parse_uid(user);
+			if (uid >= 0) {
+				gid = parse_gid(group);
+				if (gid < 0)
+					gid = 0;
+
+				rc = makedir(path, mode ?: 0755);
+				if (rc && errno == EEXIST)
+					rc = chmod(path, mode ?: 0755);
+				if (chown(path, uid, gid))
+					warn("Failed chown(%s, %d, %d)", path, uid, gid);
+			}
+			umask(omask);
 			break;
+		}
 		case 'e':
 			if (glob(path, GLOB_NOESCAPE, NULL, &gl))
 				break;
 
-			for (size_t i = 0; i < gl.gl_pathc; i++)
-				rc += mksubsys(gl.gl_pathv[i], mode ?: 0755, user, group);
+			for (size_t i = 0; i < gl.gl_pathc; i++) {
+				char *p = gl.gl_pathv[i];
+				int uid, gid;
+
+				/* e only adjusts existing directories */
+				if (!fisdir(p))
+					continue;
+
+				uid = parse_uid(user);
+				gid = parse_gid(group);
+				if (gid < 0)
+					gid = 0;
+
+				if (mode)
+					chmod(p, mode);
+				if (uid >= 0 && chown(p, uid, gid))
+					warn("Failed chown(%s, %d, %d)", p, uid, gid);
+			}
 			break;
 		case 'f':
 		case 'F':
 			mkparent(path, 0755);
 			if (type[1] == '+' || type[0] == 'F') {
 				/* f+/F will create or truncate the file */
-				if (!arg) {
-					rc = create(path, mode ?: 0644, user, group);
-					break;
-				}
 				fp = fopen(path, "w+");
 			} else {
 				/* f will create the file if it doesn't exist */
@@ -437,8 +609,20 @@ static void tmpfiles(char *line)
 			}
 
 			if (fp) {
+				int uid, gid;
+
 				write_arg(fp, arg);
 				rc = fclose(fp);
+
+				/* Apply mode and ownership */
+				if (mode)
+					chmod(path, mode);
+				uid = parse_uid(user);
+				gid = parse_gid(group);
+				if (gid < 0)
+					gid = 0;
+				if (uid >= 0 && chown(path, uid, gid))
+					warn("Failed chown(%s, %d, %d)", path, uid, gid);
 			}
 			break;
 		case 'l': /* Finit extension, like 'L' but only if target exists */
@@ -465,7 +649,10 @@ static void tmpfiles(char *line)
 			if (!strc) {
 				if (type[1] != '+')
 					break;
-				rmrf(path);
+				if (fisdir(path))
+					rmrf(path);
+				else
+					erase(path);
 			}
 			mkparent(path, 0755);
 			if (!arg) {
@@ -505,7 +692,7 @@ static void tmpfiles(char *line)
 			break;
 		case 'X':
 		case 'x':
-			dbg("Unsupported x/X command, ignoring %s, no support for clean at runtime.", path);
+			/* handled by clean_flag (--clean) */
 			break;
 		case 'Z':
 			opts = "-R";
@@ -532,16 +719,44 @@ static void tmpfiles(char *line)
 		warn("Failed %s operation on path %s", type, path);
 }
 
+static void process_file(const char *fn)
+{
+	FILE *fp;
+
+	fp = fopen(fn, "r");
+	if (!fp) {
+		warn("Failed to open %s", fn);
+		return;
+	}
+
+	while (!feof(fp)) {
+		char *line;
+
+		line = fparseln(fp, NULL, NULL, NULL, FPARSELN_UNESCCOMM);
+		if (!line)
+			continue;
+
+		tmpfiles(line);
+		free(line);
+	}
+
+	fclose(fp);
+}
+
 static int usage(int rc)
 {
 	fprintf(stderr,
-		"Usage: tmpfiles [COMMAND...]\n"
+		"Usage: tmpfiles [OPTIONS] [CONFIGFILE...]\n"
 		"\n"
-		"Commands:\n"
+		"Options:\n"
+		"  -C, --clean               Clean files and directories based on age\n"
 		"  -c, --create              Create files and directories\n"
 		"  -d, --debug               Show developer debug messages\n"
 		"  -r, --remove              Remove files and directories marked for removal\n"
 		"  -h, --help                This help text\n"
+		"\n"
+		"If no CONFIGFILE is specified, all *.conf files in the standard\n"
+		"tmpfiles.d directories are processed.\n"
 		"\n");
 
 	return rc;
@@ -550,6 +765,7 @@ static int usage(int rc)
 int main(int argc, char *argv[])
 {
 	struct option long_options[] = {
+		{ "clean",      0, NULL, 'C' },
 		{ "create",     0, NULL, 'c' },
 		{ "debug",      0, NULL, 'd' },
 		{ "remove",     0, NULL, 'r' },
@@ -559,10 +775,14 @@ int main(int argc, char *argv[])
 
 	int c;
 
-	while ((c = getopt_long(argc, argv, "cdrh?", long_options, NULL)) != EOF) {
+	while ((c = getopt_long(argc, argv, "Ccdrh?", long_options, NULL)) != EOF) {
 		switch(c) {
+		case 'C':
+			clean_flag = 1;
+			break;
+
 		case 'c':
-			c_flag = 1;
+			create_flag = 1;
 			break;
 
 		case 'd':
@@ -570,7 +790,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'r':
-			r_flag = 1;
+			remove_flag = 1;
 			break;
 
 		case 'h':
@@ -582,12 +802,21 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (c_flag + r_flag == 0) {
-		fprintf(stderr, "You need to specify at least one of --create or --remove.\n");
+	if (create_flag + clean_flag + remove_flag == 0) {
+		fprintf(stderr, "You need to specify at least one of --clean, --create, or --remove.\n");
 		return 1;
 	}
 
+	/* If config files specified on command line, process only those */
+	if (optind < argc) {
+		for (int i = optind; i < argc; i++)
+			process_file(argv[i]);
+		return 0;
+	}
+
 	/*
+	 * No config files specified, process standard tmpfiles.d directories.
+	 *
 	 * Only the three last tmpfiles.d/ directories are defined in
 	 * tmpfiles.d(5) as system search paths.  Finit adds two more
 	 * before that to have Finit specific ones sorted first, and
@@ -614,7 +843,6 @@ int main(int argc, char *argv[])
 	for (i = 0; i < gl.gl_pathc; i++) {
 		char *fn = gl.gl_pathv[i];
 		size_t j;
-		FILE *fp;
 
 		/* check for overrides */
 		for (j = i + 1; j < gl.gl_pathc; j++) {
@@ -627,26 +855,12 @@ int main(int argc, char *argv[])
 		if (!fn)
 			continue; /* skip, override exists */
 
-		fp = fopen(fn, "r");
-		if (!fp)
-			continue;
-
-//		info("Parsing %s ...", fn);
-		while (!feof(fp)) {
-			char *line;
-
-			line = fparseln(fp, NULL, NULL, NULL, FPARSELN_UNESCCOMM);
-			if (!line)
-				continue;
-
-			tmpfiles(line);
-			free(line);
-		}
-
-		fclose(fp);
+		process_file(fn);
 	}
 
 	globfree(&gl);
+
+	return 0;
 }
 
 /**
