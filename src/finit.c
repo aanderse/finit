@@ -523,6 +523,10 @@ static void fs_init(void)
 		if (fismnt(fs[i].file))
 			continue;
 
+		/* Create mount point if it doesn't exist */
+		if (!fisdir(fs[i].file))
+			mkdir(fs[i].file, 0755);
+
 		fs_mount(fs[i].spec, fs[i].file, fs[i].type, 0, NULL);
 	}
 }
