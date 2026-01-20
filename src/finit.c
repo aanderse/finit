@@ -523,6 +523,10 @@ static void fs_init(void)
 		if (fismnt(fs[i].file))
 			continue;
 
+		/* Create mount point if it doesn't exist */
+		if (mkdir(fs[i].file, 0755) && errno != EEXIST)
+			warn("Failed creating mountpoint %s: %s", fs[i].file, strerror(errno));
+
 		fs_mount(fs[i].spec, fs[i].file, fs[i].type, 0, NULL);
 	}
 }
